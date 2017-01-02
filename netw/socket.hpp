@@ -14,6 +14,7 @@
 #include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/endian/buffers.hpp>
+#include <boost/endian/buffers.hpp>
 #include <boost/shared_ptr.hpp>
 #include <iostream>
 #include <set>
@@ -31,7 +32,7 @@ class CmdH;
 class ConH;
 class ModH;
 class BasicSocket;
-typedef boost::shared_ptr<uint8_t *> DataPtr;
+typedef boost::shared_ptr<char> DataPtr;
 typedef boost::shared_ptr<Cmd> CmdPtr;
 typedef boost::shared_ptr<ModH> ModPtr;
 typedef boost::shared_ptr<BasicSocket> BasicSocketPtr;
@@ -140,6 +141,17 @@ public:
   virtual void close() { acceptor.close(); }
 };
 
+// the mod impl by 1 byte mod and 2 byte data length
+class M1L2 : public ModH {
+private:
+  char cbuf[5];
+  uint16_t length = 0;
+
+public:
+  uint8_t mod = 0x08;
+  bool big = true;
+  virtual int process(asio::streambuf &buf, CmdPtr cmd);
+};
 }
 }
 }

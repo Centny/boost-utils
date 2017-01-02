@@ -16,6 +16,7 @@ namespace netw {
 BasicSocket::BasicSocket(asio::io_service &ios, CmdH &h, ConH &con)
     : ios(ios), cmd(cmd), con(con) {
   proc = CmdPtr(new Cmd(shared_from_this()));
+  mod = ModPtr(new M1L2());
 }
 
 // readed handler
@@ -27,17 +28,15 @@ void BasicSocket::readed(const system::error_code &err) {
     return;
   }
   int code = mod->process(buf, proc);
-  switch (code) {
-  case 0: // on command.
-    doCmd(proc);
-    proc = CmdPtr(new Cmd(shared_from_this()));
-    break;
-  case 100: // continue read
-    break;
-  case -1:
-    close();
-    break;
-  default:
+  while (true) {
+    if (code == 0) {
+      doCmd(proc);
+      proc = CmdPtr(new Cmd(shared_from_this()));
+      continue;
+    }
+    if (code == 100) {
+      continue;
+    }
     close();
     return;
   }
@@ -69,7 +68,37 @@ void BasicAcceptor::accepted(BasicSocketPtr s,
   }
   accept();
 }
-//
+// the M1L2 process imple
+int M1L2::process(asio::streambuf &buf, CmdPtr cmd) {
+  size_t readed;
+  if (length < 1) {
+    if (buf.size() < 3) {
+      return 100;
+    }
+    readed = buf.sgetn(cbuf, 3);
+    if (readed < 3) {
+      return -1;
+    }
+    if (cbuf[0] != mod) {
+      return -1;
+    }
+    if (big) {
+      length = endian::detail::load_big_endian<uint16_t, 16>(cbuf + 1);
+    } else {
+      length = endian::detail::load_little_endian<uint16_t, 16>(cbuf + 1);
+    }
+  }
+  if (buf.size() < length) {
+    return 100;
+  }
+  cmd->data = DataPtr(new char[length]);
+  readed = buf.sgetn(cmd->data.get(), length);
+  if (readed < length) {
+    return -1;
+  }
+  length = 0;
+  return 0;
+}
 }
 }
 }
