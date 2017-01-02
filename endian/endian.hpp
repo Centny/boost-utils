@@ -23,7 +23,7 @@ using namespace std;
 template <BOOST_SCOPED_ENUM(endian::order) Order> // the EndianBuf template
 class EndianBuf {
 public:
-  template <typename T, std::size_t n_bits>// the put template
+  template <typename T, std::size_t n_bits> // the put template
   EndianBuf &put(T val) {
     const char *data =
         endian::endian_buffer<Order, T, n_bits, endian::align::yes>(val).data();

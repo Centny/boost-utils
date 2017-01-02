@@ -10,6 +10,8 @@
             'sources': [
                 'endian/endian.hpp',
                 'endian/endian.cpp',
+                'netw/socket.hpp',
+                'netw/socket.cpp',
                 "boost-utils.hpp",
             ],
             'conditions': [
@@ -22,6 +24,7 @@
                             "-lboost_iostreams",
                             "-lboost_filesystem",
                             "-lboost_thread",
+                            "-lcwf",
                             "-Wall",
                         ],
                     },
@@ -38,8 +41,14 @@
             'sources': [
                 'endian/endian.hpp',
                 'endian/endian.cpp',
-                "boost-utils.hpp",
                 'endian/endian_test.hpp',
+                'netw/socket.hpp',
+                'netw/socket.cpp',
+                'netw/socket_test.hpp',
+                'log/log.hpp',
+                'log/log.cpp',
+                'log/log_test.hpp',
+                "boost-utils.hpp",
                 'other_test.hpp',
                 'all_test.cpp',
             ],
@@ -50,6 +59,7 @@
                         'OTHER_LDFLAGS': [
                             "-L/usr/local/lib",
                             '-lboost_system',
+                            "-lcwf",
                             "-lboost_unit_test_framework",
                         ],
                     },
