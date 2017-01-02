@@ -36,6 +36,7 @@ BOOST_AUTO_TEST_CASE(TestPut) {
   big1.put<uint16_t, 16>(10);
   data = big1.data();
   BOOST_CHECK(data[1] == 10);
+  printf("%s\n","test endian put done...");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

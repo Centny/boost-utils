@@ -8,8 +8,9 @@
                 '/usr/include',
             ],
             'sources': [
-                'endian.hpp',
-                'endian.cpp',
+                'endian/endian.hpp',
+                'endian/endian.cpp',
+                "boost-utils.hpp",
             ],
             'conditions': [
                 ['OS=="mac"', {
@@ -35,9 +36,10 @@
                 '/usr/include',
             ],
             'sources': [
-                'endian.hpp',
-                'endian.cpp',
-                'endian_test.hpp',
+                'endian/endian.hpp',
+                'endian/endian.cpp',
+                "boost-utils.hpp",
+                'endian/endian_test.hpp',
                 'other_test.hpp',
                 'all_test.cpp',
             ],
