@@ -8,9 +8,9 @@
 
 #include "endian.hpp"
 
-namespace boost {
-namespace utils {
-
-// EndianStreamBuf &EndianStreamBuf::put(T val) { return *this; }
-}
-}
+// namespace boost {
+// namespace utils {
+//
+//// EndianStreamBuf &EndianStreamBuf::put(T val) { return *this; }
+//}
+//}
