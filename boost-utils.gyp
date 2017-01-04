@@ -1,7 +1,7 @@
 {
     'targets': [
         {
-            'target_name': 'boost-utils',
+            'target_name': 'boost_utils',
             'type': 'shared_library',
             'include_dirs': [
                 '/usr/local/include',
@@ -12,18 +12,22 @@
                 'endian/endian.cpp',
                 'netw/socket.hpp',
                 'netw/socket.cpp',
+                'log/log.hpp',
+                'log/log.h',
+                'log/log.c',
                 "boost-utils.hpp",
             ],
             'conditions': [
                 ['OS=="mac"', {
                     'xcode_settings': {
-                        'MACOSX_DEPLOYMENT_TARGET': '10.1',
+                        'MACOSX_DEPLOYMENT_TARGET': '10.5',
+                        'LD_DYLIB_INSTALL_NAME': "@rpath/$(EXECUTABLE_PATH)",
                         'OTHER_LDFLAGS': [
                             "-L/usr/local/lib",
                             '-lboost_system',
                             "-lboost_iostreams",
                             "-lboost_thread",
-                            "-lcwf",
+                            "-Wl,-rpath,."
                         ],
                     },
                 }],
@@ -43,18 +47,22 @@
                 'other_test.hpp',
                 'all_test.cpp',
             ],
+            'dependencies': [
+                'boost_utils',
+            ],
             'conditions': [
                 ['OS=="mac"', {
                     'xcode_settings': {
-                        'MACOSX_DEPLOYMENT_TARGET': '10.1',
+                        'MACOSX_DEPLOYMENT_TARGET': '10.5',
                         'OTHER_LDFLAGS': [
+                            "-L.",
                             "-L/usr/local/lib",
                             '-lboost_system',
                             "-lboost_iostreams",
                             "-lboost_thread",
-                            "-lcwf",
                             "-lboost_unit_test_framework",
-                            "-lboost-utils",
+                            "-lboost_utils",
+                            "-Wl,-rpath,.",
                         ],
                     },
                 }],
@@ -70,17 +78,21 @@
             'sources': [
                 'test/console_test.cpp',
             ],
+            'dependencies': [
+                'boost_utils',
+            ],
             'conditions': [
                 ['OS=="mac"', {
                     'xcode_settings': {
-                        'MACOSX_DEPLOYMENT_TARGET': '10.1',
+                        'MACOSX_DEPLOYMENT_TARGET': '10.5',
                         'OTHER_LDFLAGS': [
+                            "-L.",
                             "-L/usr/local/lib",
                             '-lboost_system',
                             "-lboost_iostreams",
                             "-lboost_thread",
-                            "-lcwf",
-                            "-lboost-utils",
+                            "-lboost_utils",
+                            "-Wl,-rpath,.",
                         ],
                     },
                 }],

@@ -39,4 +39,13 @@ BOOST_AUTO_TEST_CASE(TestPut) {
     printf("%s\n", "test endian put done...");
 }
 
+BOOST_AUTO_TEST_CASE(TestLoad) {
+    char buf[2];
+    endian::detail::store_big_endian<uint16_t, 2>(buf, 3);
+    printf("%d,%d\n", buf[0], buf[1]);
+    char buf1[10];
+    auto val = endian::detail::load_big_endian<uint16_t, 2>(buf);
+    BOOST_CHECK(val == 3);
+    printf("%s\n", "test endian load done...");
+}
 BOOST_AUTO_TEST_SUITE_END()
