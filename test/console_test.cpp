@@ -11,7 +11,7 @@
 #include "../netw/socket.hpp"
 using namespace butils::netw;
 
-class TestConH : public ConH {
+class TestConH : public ConH_ {
    public:
     int closed = 0;
 
@@ -33,7 +33,7 @@ class TestConH : public ConH {
         closed++;
     }
 };
-class TestCmdH : public CmdH {
+class TestCmdH : public CmdH_ {
    public:
     int received = 0;
 
@@ -47,8 +47,8 @@ class TestCmdH : public CmdH {
 
 int main(int argc, char **argv) {
     //  return;
-    ConHPtr con = ConHPtr(new TestConH());
-    CmdHPtr cmd = CmdHPtr(new TestCmdH());
+    ConH con = ConH(new TestConH());
+    CmdH cmd = CmdH(new TestCmdH());
     //    V_LOG_E("sfsdfksdfdsfkdsklfsdkf->%d", 1);
     //  boost::asio::tcp::acceptor x;
     asio::io_service ios;
