@@ -28,12 +28,12 @@ namespace netw {
 using namespace boost::asio::ip;
 using namespace boost;
 
-class CmdH;
-class ConH;
-class ModH;
-typedef boost::shared_ptr<CmdH> CmdHPtr;
-typedef boost::shared_ptr<ConH> ConHPtr;
-typedef boost::shared_ptr<ModH> ModHPtr;
+class CmdH_;
+class ConH_;
+class ModH_;
+typedef boost::shared_ptr<CmdH_> CmdH;
+typedef boost::shared_ptr<ConH_> ConH;
+typedef boost::shared_ptr<ModH_> ModH;
 //
 using ntcp = boost::asio::ip::tcp;
 using nudp = boost::asio::ip::udp;
@@ -55,7 +55,7 @@ class Connector_;
 using Connector = boost::shared_ptr<Connector_>;
 
 // the mod handler for socket frame
-class ModH {
+class ModH_ {
    public:
     virtual void full(char *buf, size_t len) = 0;
     virtual size_t header() = 0;
@@ -66,13 +66,13 @@ class ModH {
 };
 
 // the cmd handler for execute frame.
-class CmdH {
+class CmdH_ {
    public:
     virtual int OnCmd(Cmd c) = 0;
 };
 
 // the connect handler for socket event.
-class ConH {
+class ConH_ {
    public:
     // event on socket connected.
     virtual bool OnConn(TCP s, const boost::system::error_code &ec) = 0;
@@ -160,15 +160,14 @@ class UDP_ : public Writer_ {
     UDP share();
 };
 
-
 class Monitor_ : public boost::enable_shared_from_this<Monitor_> {
    protected:
     char cbuf[1024];
     basic_endpoint<nudp> remote;
 
    public:
-    CmdHPtr cmd;
-    ModHPtr mod;
+    CmdH cmd;
+    ModH mod;
     asio::io_service &ios;
     basic_endpoint<nudp> endpoint;
     asio::basic_datagram_socket<nudp> sck;
@@ -176,13 +175,12 @@ class Monitor_ : public boost::enable_shared_from_this<Monitor_> {
    protected:
     virtual void received(const boost::system::error_code &err, size_t transferred);
     virtual void receive();
-    virtual ModHPtr smod(UDP s);
     virtual void bind(basic_endpoint<nudp> ep, boost::system::error_code &ec);
 
    public:
-    Monitor_(asio::io_service &ios, CmdHPtr cmd);
-    Monitor_(asio::io_service &ios, basic_endpoint<nudp> ep, CmdHPtr cmd);
-    Monitor_(asio::io_service &ios, const char *addr, unsigned short port, CmdHPtr cmd);
+    Monitor_(asio::io_service &ios, CmdH cmd);
+    Monitor_(asio::io_service &ios, basic_endpoint<nudp> ep, CmdH cmd);
+    Monitor_(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd);
     virtual ~Monitor_();
     virtual void close();
     virtual void start(boost::system::error_code &ec);
@@ -193,10 +191,9 @@ class Monitor_ : public boost::enable_shared_from_this<Monitor_> {
     virtual size_t write(const char *addr, unsigned short port, asio::streambuf &buf, boost::system::error_code &ec);
     Monitor share();
 };
-Monitor BuildMonitor(asio::io_service &ios, CmdHPtr cmd);
-Monitor BuildMonitor(asio::io_service &ios, basic_endpoint<nudp> ep, CmdHPtr cmd);
-Monitor BuildMonitor(asio::io_service &ios, const char *addr, unsigned short port, CmdHPtr cmd);
-
+Monitor BuildMonitor(asio::io_service &ios, CmdH cmd);
+Monitor BuildMonitor(asio::io_service &ios, basic_endpoint<nudp> ep, CmdH cmd);
+Monitor BuildMonitor(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd);
 
 // the basic socket to process readed
 class TCP_ : public Writer_ {
@@ -204,9 +201,9 @@ class TCP_ : public Writer_ {
     size_t frame;
 
    public:
-    CmdHPtr cmd;
-    ConHPtr con;
-    ModHPtr mod;
+    CmdH cmd;
+    ConH con;
+    ModH mod;
     char cbuf[102400];
     asio::io_service &ios;
     asio::basic_stream_socket<ntcp> sck;
@@ -219,7 +216,7 @@ class TCP_ : public Writer_ {
 
    public:
     virtual void start();
-    TCP_(asio::io_service &ios, CmdHPtr cmd, ConHPtr con);
+    TCP_(asio::io_service &ios, CmdH cmd, ConH con);
     virtual ~TCP_();
     virtual void close();
     virtual std::string address();
@@ -228,7 +225,6 @@ class TCP_ : public Writer_ {
     virtual size_t write(asio::streambuf &buf, boost::system::error_code &ec);
     TCP share();
 };
-
 
 // the template connector for tcp/udp
 class Connector_ : public TCP_ {
@@ -239,23 +235,22 @@ class Connector_ : public TCP_ {
     virtual void connected(const boost::system::error_code &err);
 
    public:
-    Connector_(asio::io_service &ios, CmdHPtr cmd, ConHPtr con);
+    Connector_(asio::io_service &ios, CmdH cmd, ConH con);
     virtual void connect(const asio::ip::address &addr, unsigned short port, boost::system::error_code &ec);
     virtual void connect(const char *addr, unsigned short port, boost::system::error_code &err);
     virtual void connect(asio::ip::basic_endpoint<ntcp> remote, boost::system::error_code &ec);
     Connector share();
 };
-Connector BuildConnector(asio::io_service &ios, CmdHPtr cmd, ConHPtr con);
-
+Connector BuildConnector(asio::io_service &ios, CmdH cmd, ConH con);
 
 // the template acceptor for tcp/udp
 // template <typename T>
 class Acceptor_ : public boost::enable_shared_from_this<Acceptor_> {
    public:
     bool reused;
-    CmdHPtr cmd;
-    ConHPtr con;
-    ModHPtr mod;
+    CmdH cmd;
+    ConH con;
+    ModH mod;
     asio::io_service &ios;
     basic_endpoint<ntcp> endpoint;
     asio::basic_socket_acceptor<ntcp> act;
@@ -264,23 +259,21 @@ class Acceptor_ : public boost::enable_shared_from_this<Acceptor_> {
     virtual void accepted(TCP s, const boost::system::error_code &err);
     virtual void accept();
     virtual void bind(basic_endpoint<ntcp> &ep, boost::system::error_code &ec);
-    virtual ModHPtr smod(TCP s);
+    virtual ModH smod(TCP s);
 
    public:
-    Acceptor_(asio::io_service &ios, const basic_endpoint<asio::ip::tcp> &endpoint, CmdHPtr cmd, ConHPtr con);
-    Acceptor_(asio::io_service &ios, const boost::asio::ip::address &addr, unsigned short port, CmdHPtr cmd,
-              ConHPtr con);
-    Acceptor_(asio::io_service &ios, const char *addr, unsigned short port, CmdHPtr cmd, ConHPtr con);
+    Acceptor_(asio::io_service &ios, const basic_endpoint<asio::ip::tcp> &endpoint, CmdH cmd, ConH con);
+    Acceptor_(asio::io_service &ios, const boost::asio::ip::address &addr, unsigned short port, CmdH cmd, ConH con);
+    Acceptor_(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd, ConH con);
     Acceptor share();
     virtual void start(boost::system::error_code &ec);
     virtual void close();
 };
-Acceptor BuildAcceptor(asio::io_service &ios, const basic_endpoint<ntcp> &endpoint, CmdHPtr cmd, ConHPtr con);
-Acceptor BuildAcceptor(asio::io_service &ios, const char *addr, unsigned short port, CmdHPtr cmd, ConHPtr con);
-
+Acceptor BuildAcceptor(asio::io_service &ios, const basic_endpoint<ntcp> &endpoint, CmdH cmd, ConH con);
+Acceptor BuildAcceptor(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd, ConH con);
 
 // the mod impl by 1 byte mod and 2 byte data length
-class M1L2 : public ModH {
+class M1L2 : public ModH_ {
    public:
     M1L2();
     ~M1L2();

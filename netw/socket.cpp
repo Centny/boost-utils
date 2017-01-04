@@ -62,8 +62,8 @@ Cmd Cmd_::slice(size_t offset, size_t len) {
     return cmd;
 }
 
-TCP_::TCP_(asio::io_service &ios, CmdHPtr cmd, ConHPtr con) : ios(ios), sck(ios), cmd(cmd), con(con) {
-    mod = ModHPtr(new M1L2());
+TCP_::TCP_(asio::io_service &ios, CmdH cmd, ConH con) : ios(ios), sck(ios), cmd(cmd), con(con) {
+    mod = ModH(new M1L2());
 }
 
 TCP_::~TCP_() { V_LOG_FREE("BasicSocket free client %d", this->Id()); }
@@ -191,27 +191,25 @@ void Monitor_::receive() {
     sck.async_receive_from(boost::asio::buffer(cbuf, 1024), remote, cback);
 }
 
-ModHPtr Monitor_::smod(UDP s) { return mod; }
-
 void Monitor_::bind(basic_endpoint<nudp> ep, boost::system::error_code &ec) {
     sck.open(ep.protocol());
     sck.set_option(asio::socket_base::reuse_address(true));
     sck.bind(ep, ec);
 }
 
-Monitor_::Monitor_(asio::io_service &ios, CmdHPtr cmd) : ios(ios), sck(ios), cmd(cmd) {
+Monitor_::Monitor_(asio::io_service &ios, CmdH cmd) : ios(ios), sck(ios), cmd(cmd) {
     endpoint = udp::endpoint(udp::v4(), 0);
-    mod = ModHPtr(new M1L2);
+    mod = ModH(new M1L2);
 }
 
-Monitor_::Monitor_(asio::io_service &ios, basic_endpoint<nudp> ep, CmdHPtr cmd)
+Monitor_::Monitor_(asio::io_service &ios, basic_endpoint<nudp> ep, CmdH cmd)
     : ios(ios), sck(ios), endpoint(ep), cmd(cmd) {
-    mod = ModHPtr(new M1L2);
+    mod = ModH(new M1L2);
 }
 
-Monitor_::Monitor_(asio::io_service &ios, const char *addr, unsigned short port, CmdHPtr cmd)
+Monitor_::Monitor_(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd)
     : ios(ios), sck(ios), endpoint(basic_endpoint<nudp>(address::from_string(addr), port)), cmd(cmd) {
-    mod = ModHPtr(new M1L2);
+    mod = ModH(new M1L2);
 }
 
 Monitor_::~Monitor_() {}
@@ -257,17 +255,17 @@ size_t Monitor_::write(const char *addr, unsigned short port, asio::streambuf &b
 
 Monitor Monitor_::share() { return shared_from_this(); }
 
-Monitor BuildMonitor(asio::io_service &ios, CmdHPtr cmd) { return Monitor(new Monitor_(ios, cmd)); }
+Monitor BuildMonitor(asio::io_service &ios, CmdH cmd) { return Monitor(new Monitor_(ios, cmd)); }
 
-Monitor BuildMonitor(asio::io_service &ios, basic_endpoint<nudp> ep, CmdHPtr cmd) {
+Monitor BuildMonitor(asio::io_service &ios, basic_endpoint<nudp> ep, CmdH cmd) {
     return Monitor(new Monitor_(ios, ep, cmd));
 }
 
-Monitor BuildMonitor(asio::io_service &ios, const char *addr, unsigned short port, CmdHPtr cmd) {
+Monitor BuildMonitor(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd) {
     return Monitor(new Monitor_(ios, addr, port, cmd));
 }
 
-Connector_::Connector_(asio::io_service &ios, CmdHPtr cmd, ConHPtr con) : TCP_(ios, cmd, con) {}
+Connector_::Connector_(asio::io_service &ios, CmdH cmd, ConH con) : TCP_(ios, cmd, con) {}
 
 void Connector_::connect(const asio::ip::address &addr, unsigned short port, boost::system::error_code &ec) {
     connect(asio::ip::basic_endpoint<ntcp>(addr, port), ec);
@@ -305,27 +303,25 @@ void Connector_::connected(const boost::system::error_code &err) {
 
 Connector Connector_::share() { return boost::dynamic_pointer_cast<Connector_>(Writer_::share()); }
 
-Connector BuildConnector(asio::io_service &ios, CmdHPtr cmd, ConHPtr con) {
-    return Connector(new Connector_(ios, cmd, con));
-}
+Connector BuildConnector(asio::io_service &ios, CmdH cmd, ConH con) { return Connector(new Connector_(ios, cmd, con)); }
 
-Acceptor_::Acceptor_(asio::io_service &ios, const basic_endpoint<asio::ip::tcp> &endpoint, CmdHPtr cmd, ConHPtr con)
+Acceptor_::Acceptor_(asio::io_service &ios, const basic_endpoint<asio::ip::tcp> &endpoint, CmdH cmd, ConH con)
     : ios(ios), cmd(cmd), con(con), act(ios) {
     this->endpoint = endpoint;
-    mod = ModHPtr(new M1L2());
+    mod = ModH(new M1L2());
 }
 
-Acceptor_::Acceptor_(asio::io_service &ios, const boost::asio::ip::address &addr, unsigned short port, CmdHPtr cmd,
-                     ConHPtr con)
+Acceptor_::Acceptor_(asio::io_service &ios, const boost::asio::ip::address &addr, unsigned short port, CmdH cmd,
+                     ConH con)
     : ios(ios), cmd(cmd), con(con), act(ios) {
     this->endpoint = basic_endpoint<asio::ip::tcp>(addr, port);
-    mod = ModHPtr(new M1L2());
+    mod = ModH(new M1L2());
 }
 
-Acceptor_::Acceptor_(asio::io_service &ios, const char *addr, unsigned short port, CmdHPtr cmd, ConHPtr con)
+Acceptor_::Acceptor_(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd, ConH con)
     : ios(ios), cmd(cmd), con(con), act(ios) {
     this->endpoint = basic_endpoint<asio::ip::tcp>(asio::ip::address::from_string(addr), port);
-    mod = ModHPtr(new M1L2());
+    mod = ModH(new M1L2());
 }
 
 void Acceptor_::accepted(TCP s, const boost::system::error_code &err) {
@@ -347,7 +343,7 @@ void Acceptor_::accepted(TCP s, const boost::system::error_code &err) {
 
 Acceptor Acceptor_::share() { return shared_from_this(); }
 
-ModHPtr Acceptor_::smod(TCP s) { return mod; }
+ModH Acceptor_::smod(TCP s) { return mod; }
 
 void Acceptor_::bind(basic_endpoint<ntcp> &ep, boost::system::error_code &ec) {
     act.open(ep.protocol());
@@ -372,11 +368,11 @@ void Acceptor_::accept() {
 
 void Acceptor_::close() { act.close(); }
 
-Acceptor BuildAcceptor(asio::io_service &ios, const basic_endpoint<ntcp> &endpoint, CmdHPtr cmd, ConHPtr con) {
+Acceptor BuildAcceptor(asio::io_service &ios, const basic_endpoint<ntcp> &endpoint, CmdH cmd, ConH con) {
     return Acceptor(new Acceptor_(ios, endpoint, cmd, con));
 }
 
-Acceptor BuildAcceptor(asio::io_service &ios, const char *addr, unsigned short port, CmdHPtr cmd, ConHPtr con) {
+Acceptor BuildAcceptor(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd, ConH con) {
     return Acceptor(new Acceptor_(ios, addr, port, cmd, con));
 }
 

@@ -32,7 +32,7 @@ template <typename T>
 class C1 : public A1 {};
 template <typename T>
 class C2 : public A, public boost::enable_shared_from_this<C2<T> > {};
-BOOST_AUTO_TEST_CASE(TestSharedPtr) {
+BOOST_AUTO_TEST_CASE(TestShared) {
     boost::shared_ptr<A> a(new A);
     boost::shared_ptr<B<int> > b(new B<int>);
     boost::shared_ptr<C<int> > c(new C<int>);
@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE(TestSharedPtr) {
     printf("%s\n", "test shared ptr done...");
 }
 
-class TestConH : public ConH {
+class TestConH : public ConH_ {
    public:
     int closed = 0;
 
@@ -76,7 +76,7 @@ class TestConH : public ConH {
         closed++;
     }
 };
-class TestCmdH : public CmdH {
+class TestCmdH : public CmdH_ {
    public:
     int received = 0;
     bool res;
@@ -98,8 +98,8 @@ class TcpTest {
     Acceptor srv;
     Connector c1;
     void run() {
-        ConHPtr con = ConHPtr(new TestConH());
-        CmdHPtr cmd = CmdHPtr(new TestCmdH());
+        ConH con = ConH(new TestConH());
+        CmdH cmd = CmdH(new TestCmdH());
         TestCmdH *ch = (TestCmdH *)cmd.get();
         //  boost::asio::tcp::acceptor x;
         boost::system::error_code ec;
@@ -125,7 +125,7 @@ class UdpTest {
     Monitor srv;
     Monitor c1;
     void run() {
-        CmdHPtr cmd = CmdHPtr(new TestCmdH());
+        CmdH cmd = CmdH(new TestCmdH());
         TestCmdH *ch = (TestCmdH *)cmd.get();
         ch->res = true;
         //  boost::asio::tcp::acceptor x;
