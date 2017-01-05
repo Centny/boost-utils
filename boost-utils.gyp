@@ -1,6 +1,10 @@
 {
     'targets': [
         {
+            "variables": {
+                "other_cflags%": "",
+                "other_lflags%": "",
+            },
             'target_name': 'boost_utils',
             'type': 'shared_library',
             'include_dirs': [
@@ -22,12 +26,16 @@
                     'xcode_settings': {
                         'MACOSX_DEPLOYMENT_TARGET': '10.5',
                         'LD_DYLIB_INSTALL_NAME': "@rpath/$(EXECUTABLE_PATH)",
+                        'OTHER_CFLAGS': [
+                            "<(other_cflags)",
+                        ],
                         'OTHER_LDFLAGS': [
                             "-L/usr/local/lib",
                             '-lboost_system',
                             "-lboost_iostreams",
                             "-lboost_thread",
-                            "-Wl,-rpath,."
+                            "-Wl,-rpath,.",
+                            "<(other_lflags)",
                         ],
                     },
                 }],
