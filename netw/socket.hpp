@@ -14,7 +14,6 @@
 #include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/endian/buffers.hpp>
-#include <boost/endian/buffers.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 #include <iostream>
@@ -89,7 +88,9 @@ class Data_ : public boost::enable_shared_from_this<Data_> {
     Data_(const char *buf, size_t len);
     ~Data_();
     Data share();
+    char operator[](size_t i);
 };
+    Data BuildData(const char* buf, size_t len);
 
 class Writer_ : public boost::enable_shared_from_this<Writer_> {
    protected:
@@ -98,6 +99,7 @@ class Writer_ : public boost::enable_shared_from_this<Writer_> {
    public:
     Writer_();
     virtual uint64_t Id();
+    virtual size_t write(Data data, boost::system::error_code &ec);
     virtual size_t write(const char *data, size_t len, boost::system::error_code &ec) = 0;
     virtual size_t write(asio::streambuf &buf, boost::system::error_code &ec) = 0;
     virtual void close() = 0;
@@ -221,6 +223,7 @@ class TCP_ : public Writer_ {
     virtual void close();
     virtual std::string address();
     virtual void bind(basic_endpoint<ntcp> ep, boost::system::error_code &ec);
+    virtual size_t write(Data data, boost::system::error_code &ec);
     virtual size_t write(const char *data, size_t len, boost::system::error_code &ec);
     virtual size_t write(asio::streambuf &buf, boost::system::error_code &ec);
     TCP share();
@@ -273,16 +276,39 @@ Acceptor BuildAcceptor(asio::io_service &ios, const basic_endpoint<ntcp> &endpoi
 Acceptor BuildAcceptor(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd, ConH con);
 
 // the mod impl by 1 byte mod and 2 byte data length
-class M1L2 : public ModH_ {
+template <typename T, std::size_t bits>
+class M1LX : public ModH_ {
    public:
-    M1L2();
-    ~M1L2();
     uint8_t magic = 0x08;
     bool big = true;
-    virtual void full(char *buf, size_t len);
-    virtual size_t header();
-    virtual size_t parse(const char *buf);
+
+   public:
+    M1LX(uint8_t magic = 0x08, bool big = true) : magic(magic), big(big) {}
+    ~M1LX() {}
+    virtual void full(char *buf, size_t len) {
+        buf[0] = magic;
+        if (big) {
+            boost::endian::detail::store_big_endian<T, bits>(buf + 1, (T)len);
+        } else {
+            boost::endian::detail::store_little_endian<T, bits>(buf + 1, (T)len);
+        }
+    }
+
+    virtual size_t header() { return bits+1; }
+    virtual size_t parse(const char *buf) {
+        if (buf[0] != magic) {
+            return 0;
+        }
+        // printf("%d,%d\n", buf[1], buf[2]);
+        if (big) {
+            return (size_t)boost::endian::detail::load_big_endian<T, bits>(buf + 1);
+        } else {
+            return (size_t)boost::endian::detail::load_little_endian<T, bits>(buf + 1);
+        }
+    }
 };
+typedef M1LX<uint16_t, 2> M1L2;
+typedef M1LX<uint32_t, 4> M1L4;
 }
 }
 #endif /* socket_hpp */

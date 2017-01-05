@@ -9,5 +9,8 @@
 #ifndef boost_utils_h
 #define boost_utils_h
 #include "endian/endian.hpp"
+#include "netw/socket.hpp"
+
+#define SHARED_TO(T) boost::dynamic_pointer_cast<T>(shared_from_this())
 
 #endif /* boost_utils_h */

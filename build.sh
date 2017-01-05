@@ -4,13 +4,10 @@ clang-format -style=file -i -sort-includes **/*.cpp **/*.hpp #**/*.hpp **/*.cc *
 # export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:.
 if [ "$1" = "test" ];then
     export GYP_DEFINES="other_cflags='-fprofile-arcs -ftest-coverage' other_lflags='-fprofile-arcs -ftest-coverage'"
-    gyp --depth=. --build=Default 
-else
-    gyp --depth=. --build=Default
 fi
+gyp --depth=. --build=Default 
 
 if [ "$1" = "test" ];then
-    export LLVM_PROFILE_FILE=`pwd`/a.profraw
     cd ./build/Default/
     ./boost.utils.test
     cd ../../

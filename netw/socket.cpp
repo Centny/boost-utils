@@ -19,13 +19,23 @@ static boost::shared_mutex sequence_lck;
 
 Data_::Data_(const char *buf, size_t len) {
     data = new char[len];
-    strncpy(data, buf, len);
+    memcpy(data, buf, len);
+    this->len=len;
 }
 
-Data_::~Data_() { delete data; }
+Data_::~Data_() {
+    delete data;
+    V_LOG_FREE("%s","Data_ free...");
+}
 
 Data Data_::share() { return shared_from_this(); }
-
+    char Data_::operator[](size_t i){
+        return data[i];
+    }
+    Data BuildData(const char* buf, size_t len){
+        return Data(new Data_(buf,len));
+    }
+    
 Writer_::Writer_() {
     sequence_lck.lock();
     Id_ = sequence++;
@@ -33,6 +43,10 @@ Writer_::Writer_() {
 }
 
 uint64_t Writer_::Id() { return Id_; }
+    
+size_t Writer_::write(Data data, boost::system::error_code &ec){
+    return write(data->data, data->len, ec);
+}
 
 Writer Writer_::share() { return shared_from_this(); }
 
@@ -78,6 +92,10 @@ void TCP_::bind(boost::asio::ip::basic_endpoint<ntcp> ep, boost::system::error_c
     sck.bind(ep, ec);
 }
 
+size_t TCP_::write(Data data, boost::system::error_code &ec){
+    return Writer_::write(data, ec);
+}
+    
 void TCP_::read(size_t exp) {
     auto cback = boost::bind(&TCP_::readed, share(), asio::placeholders::error, asio::placeholders::bytes_transferred);
     asio::async_read(sck, boost::asio::buffer(cbuf, exp), cback);
@@ -228,7 +246,7 @@ size_t Monitor_::write(basic_endpoint<nudp> remote, const char *data, size_t len
     size_t hlen = mod->header();
     char tbuf[hlen + len];
     mod->full(tbuf, len);
-    strncpy(tbuf + hlen, data, len);
+    memcpy(tbuf + hlen, data, len);
     return sck.send_to(boost::asio::buffer(tbuf, len + hlen), remote, boost::asio::socket_base::message_peek, ec);
 }
 
@@ -374,33 +392,6 @@ Acceptor BuildAcceptor(asio::io_service &ios, const basic_endpoint<ntcp> &endpoi
 
 Acceptor BuildAcceptor(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd, ConH con) {
     return Acceptor(new Acceptor_(ios, addr, port, cmd, con));
-}
-
-M1L2::M1L2() {}
-
-M1L2::~M1L2() {}
-
-void M1L2::full(char *buf, size_t len) {
-    buf[0] = magic;
-    if (big) {
-        endian::detail::store_big_endian<uint16_t, 2>(buf + 1, len);
-    } else {
-        endian::detail::store_little_endian<uint16_t, 2>(buf + 1, len);
-    }
-}
-
-size_t M1L2::header() { return 3; }
-
-size_t M1L2::parse(const char *buf) {
-    if (buf[0] != magic) {
-        return 0;
-    }
-    // printf("%d,%d\n", buf[1], buf[2]);
-    if (big) {
-        return endian::detail::load_big_endian<uint16_t, 2>(buf + 1);
-    } else {
-        return endian::detail::load_little_endian<uint16_t, 2>(buf + 1);
-    }
 }
 }
 }
