@@ -20,22 +20,33 @@ static boost::shared_mutex sequence_lck;
 Data_::Data_(const char *buf, size_t len) {
     data = new char[len];
     memcpy(data, buf, len);
-    this->len=len;
+    this->len = len;
 }
 
 Data_::~Data_() {
     delete data;
-    V_LOG_FREE("%s","Data_ free...");
+    V_LOG_FREE("%s", "Data_ free...");
 }
 
 Data Data_::share() { return shared_from_this(); }
-    char Data_::operator[](size_t i){
-        return data[i];
+char Data_::operator[](size_t i) { return data[i]; }
+Data BuildData(const char *buf, size_t len) { return Data(new Data_(buf, len)); }
+void Data_::print(char *buf) {
+    char tbuf_[102400];
+    char *tbuf = buf;
+    if (tbuf == 0) {
+        tbuf = tbuf_;
     }
-    Data BuildData(const char* buf, size_t len){
-        return Data(new Data_(buf,len));
+    size_t tlen = sprintf(tbuf, "Data(%ld):", len);
+    for (size_t i = 0; i < len; i++) {
+        tlen += sprintf(tbuf + tlen, "%02x ", (uint8_t)data[i]);
     }
-    
+    tbuf[tlen] = 0;
+    if (buf == 0) {
+        printf("%s\n", tbuf);
+    }
+}
+Data Data_::sub(size_t offset, size_t len) { return BuildData(this->data + offset, len); }
 Writer_::Writer_() {
     sequence_lck.lock();
     Id_ = sequence++;
@@ -43,10 +54,8 @@ Writer_::Writer_() {
 }
 
 uint64_t Writer_::Id() { return Id_; }
-    
-size_t Writer_::write(Data data, boost::system::error_code &ec){
-    return write(data->data, data->len, ec);
-}
+
+size_t Writer_::write(Data data, boost::system::error_code &ec) { return write(data->data, data->len, ec); }
 
 Writer Writer_::share() { return shared_from_this(); }
 
@@ -76,6 +85,8 @@ Cmd Cmd_::slice(size_t offset, size_t len) {
     return cmd;
 }
 
+char Cmd_::charAt(size_t idx) { return data->data[idx]; }
+
 TCP_::TCP_(asio::io_service &ios, CmdH cmd, ConH con) : ios(ios), sck(ios), cmd(cmd), con(con) {
     mod = ModH(new M1L2());
 }
@@ -92,10 +103,8 @@ void TCP_::bind(boost::asio::ip::basic_endpoint<ntcp> ep, boost::system::error_c
     sck.bind(ep, ec);
 }
 
-size_t TCP_::write(Data data, boost::system::error_code &ec){
-    return Writer_::write(data, ec);
-}
-    
+size_t TCP_::write(Data data, boost::system::error_code &ec) { return Writer_::write(data, ec); }
+
 void TCP_::read(size_t exp) {
     auto cback = boost::bind(&TCP_::readed, share(), asio::placeholders::error, asio::placeholders::bytes_transferred);
     asio::async_read(sck, boost::asio::buffer(cbuf, exp), cback);
@@ -310,7 +319,7 @@ void Connector_::connected(const boost::system::error_code &err) {
         return;
     }
     boost::system::error_code ec;
-    local = this->sck.remote_endpoint(ec);
+    local = this->sck.local_endpoint(ec);
     if (ec) {
         this->con->OnConn(this->share(), ec);
         return;
@@ -320,6 +329,8 @@ void Connector_::connected(const boost::system::error_code &err) {
 }
 
 Connector Connector_::share() { return boost::dynamic_pointer_cast<Connector_>(Writer_::share()); }
+
+std::string Connector_::address() { return ep_address(local); }
 
 Connector BuildConnector(asio::io_service &ios, CmdH cmd, ConH con) { return Connector(new Connector_(ios, cmd, con)); }
 

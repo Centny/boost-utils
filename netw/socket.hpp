@@ -56,7 +56,7 @@ using Connector = boost::shared_ptr<Connector_>;
 // the mod handler for socket frame
 class ModH_ {
    public:
-    virtual void full(char *buf, size_t len) = 0;
+    virtual void full(char *buf, size_t len, int idx = 0) = 0;
     virtual size_t header() = 0;
     // 0:complete one.
     // 100:nead more data.
@@ -89,8 +89,10 @@ class Data_ : public boost::enable_shared_from_this<Data_> {
     ~Data_();
     Data share();
     char operator[](size_t i);
+    virtual void print(char *buf = 0);
+    Data sub(size_t offset, size_t len);
 };
-    Data BuildData(const char* buf, size_t len);
+Data BuildData(const char *buf, size_t len);
 
 class Writer_ : public boost::enable_shared_from_this<Writer_> {
    protected:
@@ -124,6 +126,7 @@ class Cmd_ {
     virtual const char *cdata();
     virtual size_t clength();
     virtual Cmd slice(size_t offset, size_t len = 0);
+    virtual char charAt(size_t idx);
 };
 
 template <typename T>
@@ -243,6 +246,7 @@ class Connector_ : public TCP_ {
     virtual void connect(const char *addr, unsigned short port, boost::system::error_code &err);
     virtual void connect(asio::ip::basic_endpoint<ntcp> remote, boost::system::error_code &ec);
     Connector share();
+    virtual std::string address();
 };
 Connector BuildConnector(asio::io_service &ios, CmdH cmd, ConH con);
 
@@ -279,14 +283,19 @@ Acceptor BuildAcceptor(asio::io_service &ios, const char *addr, unsigned short p
 template <typename T, std::size_t bits>
 class M1LX : public ModH_ {
    public:
-    uint8_t magic = 0x08;
+    uint8_t magic[8];
     bool big = true;
 
    public:
-    M1LX(uint8_t magic = 0x08, bool big = true) : magic(magic), big(big) {}
+    M1LX(uint8_t magic = 0x08, bool big = true) {
+        memset(this->magic, 0, 8);
+        this->magic[0] = magic;
+        this->magic[1] = 0;
+        this->big = big;
+    }
     ~M1LX() {}
-    virtual void full(char *buf, size_t len) {
-        buf[0] = magic;
+    virtual void full(char *buf, size_t len, int idx = 0) {
+        buf[0] = magic[idx];
         if (big) {
             boost::endian::detail::store_big_endian<T, bits>(buf + 1, (T)len);
         } else {
@@ -294,16 +303,24 @@ class M1LX : public ModH_ {
         }
     }
 
-    virtual size_t header() { return bits+1; }
+    virtual size_t header() { return bits + 1; }
     virtual size_t parse(const char *buf) {
-        if (buf[0] != magic) {
-            return 0;
+        bool found = true;
+        for (int i = 0; i < 8; i++) {
+            if (magic[i] && magic[i] == (unsigned char)buf[0]) {
+                found = true;
+                break;
+            }
         }
-        // printf("%d,%d\n", buf[1], buf[2]);
-        if (big) {
-            return (size_t)boost::endian::detail::load_big_endian<T, bits>(buf + 1);
+        if (found) {
+            // printf("%d,%d\n", buf[1], buf[2]);
+            if (big) {
+                return (size_t)boost::endian::detail::load_big_endian<T, bits>(buf + 1);
+            } else {
+                return (size_t)boost::endian::detail::load_little_endian<T, bits>(buf + 1);
+            }
         } else {
-            return (size_t)boost::endian::detail::load_little_endian<T, bits>(buf + 1);
+            return -1;
         }
     }
 };

@@ -10,6 +10,9 @@
 #include <stdlib.h>
 #include "log.h"
 
+#ifndef V_CWF_LOG_PREFIX
+#define V_CWF_LOG_PREFIX 2
+#endif
 //the level.
 int v_cwf_log_lvl_ = V_CWF_LOG_D;
 void (*v_cwf_log_f_)(const char* file, int line, int lvl, const char* fmt,
@@ -29,9 +32,25 @@ void v_cwf_log_(const char* file, int line, int lvl, const char* fmt, ...) {
 	}
 }
 
+size_t v_cwf_log_file(const char* file){
+    size_t len=strlen(file);
+    size_t t=V_CWF_LOG_PREFIX;
+    for (size_t offset=len-1; offset>0; offset--) {
+        if(file[offset]=='/'||file[offset]=='\\'){
+            t--;
+        }
+        if(t<1){
+            return offset;
+        }
+    }
+    return 0;
+}
+
 void v_cwf_log_print(const char* file, int line, int lvl, const char* fmt,
 		va_list args) {
-	size_t clen = strlen(file) + 30 + strlen(fmt);
+    //strchr(file, '5');
+    const char* tfile=file+v_cwf_log_file(file);
+	size_t clen = strlen(tfile) + 30 + strlen(fmt);
 	char *buf = malloc(sizeof(char) * clen);
 	time_t rawtime;
 	struct tm * timeinfo;
@@ -40,19 +59,19 @@ void v_cwf_log_print(const char* file, int line, int lvl, const char* fmt,
 	size_t blen = strftime(buf, clen, "%Y/%m/%d %H:%M:%S ", timeinfo);
 	switch (lvl) {
 	case V_CWF_LOG_D:
-		blen += sprintf(buf + blen, "%s:%d D %s\n", file, line, fmt);
+		blen += sprintf(buf + blen, "%s:%d D %s\n", tfile, line, fmt);
 		break;
 	case V_CWF_LOG_I:
-		blen += sprintf(buf + blen, "%s:%d I %s\n", file, line, fmt);
+		blen += sprintf(buf + blen, "%s:%d I %s\n", tfile, line, fmt);
 		break;
 	case V_CWF_LOG_W:
-		blen += sprintf(buf + blen, "%s:%d W %s\n", file, line, fmt);
+		blen += sprintf(buf + blen, "%s:%d W %s\n", tfile, line, fmt);
 		break;
 	case V_CWF_LOG_E:
-		blen += sprintf(buf + blen, "%s:%d E %s\n", file, line, fmt);
+		blen += sprintf(buf + blen, "%s:%d E %s\n", tfile, line, fmt);
 		break;
 	default:
-		blen += sprintf(buf + blen, "%s:%d U %s\n", file, line, fmt);
+		blen += sprintf(buf + blen, "%s:%d U %s\n", tfile, line, fmt);
 		break;
 	}
 	buf[blen] = 0;
