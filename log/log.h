@@ -24,6 +24,8 @@ extern int v_cwf_log_lvl_;
 extern void (*v_cwf_log_f_)(const char* file, int line, int lvl,
 		const char* fmt, va_list args);
 //
+size_t v_cwf_log_file(const char* file);
+//
 void v_cwf_log_print(const char* file, int line, int lvl, const char* fmt,
 		va_list args);
 //

@@ -7,3 +7,11 @@
 //
 
 #include "log.hpp"
+#include <string>
+
+Fail_::Fail_(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vsprintf(err, fmt, args);
+    va_end(args);
+}

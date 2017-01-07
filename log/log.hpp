@@ -16,4 +16,12 @@
 #define V_LOG_W v_cwf_log_w
 #define V_LOG_E v_cwf_log_e
 
+class Fail_ {
+   public:
+    char err[256];
+    Fail_(const char* fmt, ...);
+};
+
+#define Fail(fmt, args...) Fail_(fmt, args)
+
 #endif /* log_hpp */

@@ -7,15 +7,50 @@
 //
 
 #include "socket.hpp"
+#include <zlib.h>
 #include <boost/pointer_cast.hpp>
 #include <boost/shared_ptr.hpp>
 #include "../log/log.hpp"
 namespace butils {
 namespace netw {
 
+int zinflate(const void *src, size_t srcLen, void *dst, size_t dstLen, size_t &out) {
+    z_stream strm = {0};
+    strm.total_in = strm.avail_in = srcLen;
+    strm.total_out = strm.avail_out = dstLen;
+    strm.next_in = (Bytef *)src;
+    strm.next_out = (Bytef *)dst;
+    strm.zalloc = Z_NULL;
+    strm.zfree = Z_NULL;
+    strm.opaque = Z_NULL;
+    int err = -1;
+    err = inflateInit2(&strm, (15 + 32));  // 15 window bits, and the +32 tells zlib to to detect if using gzip or zlib
+    if (err != Z_OK) {
+        inflateEnd(&strm);
+        return err;
+    }
+    err = inflate(&strm, Z_FINISH);
+    if (err == Z_STREAM_END) {
+        out = strm.total_out;
+        err = 0;
+    }
+    inflateEnd(&strm);
+    return err;
+}
 // the basic acceptor sequence.
 static uint64_t sequence = 0;
 static boost::shared_mutex sequence_lck;
+
+Data_::Data_(size_t len, bool iss) {
+    if (iss) {
+        data = new char[len + 1];
+        memset(data, 0, len + 1);
+    } else {
+        data = new char[len];
+        memset(data, 0, len);
+    }
+    this->len = len;
+}
 
 Data_::Data_(const char *buf, size_t len) {
     data = new char[len];
@@ -31,6 +66,7 @@ Data_::~Data_() {
 Data Data_::share() { return shared_from_this(); }
 char Data_::operator[](size_t i) { return data[i]; }
 Data BuildData(const char *buf, size_t len) { return Data(new Data_(buf, len)); }
+Data BuildData(size_t len, bool iss) { return Data(new Data_(len, iss)); }
 void Data_::print(char *buf) {
     char tbuf_[102400];
     char *tbuf = buf;
@@ -46,7 +82,34 @@ void Data_::print(char *buf) {
         printf("%s\n", tbuf);
     }
 }
+
 Data Data_::sub(size_t offset, size_t len) { return BuildData(this->data + offset, len); }
+
+bool Data_::cmp(const char *val) {
+    if (len) {
+        return strcmp(this->data, val);
+    } else {
+        return false;
+    }
+}
+
+int Data_::inflate(size_t offset) {
+    char *ndata = new char[2 * len];
+    if (offset) {
+        memcpy(ndata, data, offset);
+    }
+    size_t out = 0;
+    if (zinflate(data + offset, len - offset, ndata + offset, 2 * len - offset, out)) {
+        delete[] ndata;
+        return -1;
+    } else {
+        delete data;
+        data = ndata;
+        len = offset + out;
+        return 0;
+    }
+}
+
 Writer_::Writer_() {
     sequence_lck.lock();
     Id_ = sequence++;
@@ -61,9 +124,10 @@ Writer Writer_::share() { return shared_from_this(); }
 
 Cmd_::Cmd_() {}
 
-Cmd_::Cmd_(Writer writer, const char *buf, size_t len) : writer(writer), data(new Data_(buf, len)) {
+Cmd_::Cmd_(Writer writer, const char *buf, size_t len, Data header) : writer(writer), data(new Data_(buf, len)) {
     this->offset = 0;
     this->length = len;
+    this->header = header;
 }
 
 Cmd_::~Cmd_() {}
@@ -119,7 +183,8 @@ void TCP_::readed(const system::error_code &err, size_t transferred) {
         return;
     }
     if (frame < 1) {
-        if (transferred < mod->header()) {
+        size_t hs = mod->header();
+        if (transferred < hs) {
             V_LOG_E("BasicSocket readed invalid frame header length(%d), will close", transferred);
             con->OnClose(bs, err);
             close();
@@ -132,6 +197,7 @@ void TCP_::readed(const system::error_code &err, size_t transferred) {
             close();
             return;
         }
+        header = BuildData(cbuf, hs);
         read(frame);
         return;
     }
@@ -141,7 +207,7 @@ void TCP_::readed(const system::error_code &err, size_t transferred) {
         close();
         return;
     }
-    cmd->OnCmd(Cmd(new Cmd_(share(), cbuf, transferred)));
+    cmd->OnCmd(Cmd(new Cmd_(share(), cbuf, transferred, header)));
     frame = 0;
     read(mod->header());
 }
@@ -206,8 +272,9 @@ void Monitor_::received(const boost::system::error_code &err, size_t transferred
         V_LOG_E("Monitor_ readed invalid frame by transferred(%ld),expected(%ld), dropped", transferred, frame + hlen);
         return;
     }
+    Data header = BuildData(cbuf, hlen);
     UDP uframe(new UDP_(ios, share(), remote));
-    cmd->OnCmd(Cmd(new Cmd_(uframe, cbuf + hlen, frame)));
+    cmd->OnCmd(Cmd(new Cmd_(uframe, cbuf + hlen, frame, header)));
     receive();
 }
 

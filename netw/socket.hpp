@@ -53,6 +53,8 @@ using Acceptor = boost::shared_ptr<Acceptor_>;
 class Connector_;
 using Connector = boost::shared_ptr<Connector_>;
 
+int zinflate(const void *src, size_t srcLen, void *dst, size_t dstLen, size_t &out);
+
 // the mod handler for socket frame
 class ModH_ {
    public:
@@ -85,14 +87,18 @@ class Data_ : public boost::enable_shared_from_this<Data_> {
     size_t len;
 
    public:
+    Data_(size_t len, bool iss = false);
     Data_(const char *buf, size_t len);
     ~Data_();
     Data share();
     char operator[](size_t i);
     virtual void print(char *buf = 0);
     Data sub(size_t offset, size_t len);
+    bool cmp(const char *val);
+    int inflate(size_t offset = 0);
 };
 Data BuildData(const char *buf, size_t len);
+Data BuildData(size_t len, bool iss = false);
 
 class Writer_ : public boost::enable_shared_from_this<Writer_> {
    protected:
@@ -116,12 +122,13 @@ class Cmd_ {
     size_t offset;
     size_t length;
     Data data;
+    Data header;
 
    protected:
     Cmd_();
 
    public:
-    Cmd_(Writer writer, const char *buf, size_t len);
+    Cmd_(Writer writer, const char *buf, size_t len, Data header);
     ~Cmd_();
     virtual const char *cdata();
     virtual size_t clength();
@@ -204,6 +211,7 @@ Monitor BuildMonitor(asio::io_service &ios, const char *addr, unsigned short por
 class TCP_ : public Writer_ {
    private:
     size_t frame;
+    Data header;
 
    public:
     CmdH cmd;
@@ -287,10 +295,10 @@ class M1LX : public ModH_ {
     bool big = true;
 
    public:
-    M1LX(uint8_t magic = 0x08, bool big = true) {
+    M1LX() { memset(this->magic, 0, 8); }
+    M1LX(uint8_t magic, bool big = true) {
         memset(this->magic, 0, 8);
         this->magic[0] = magic;
-        this->magic[1] = 0;
         this->big = big;
     }
     ~M1LX() {}
@@ -305,7 +313,7 @@ class M1LX : public ModH_ {
 
     virtual size_t header() { return bits + 1; }
     virtual size_t parse(const char *buf) {
-        bool found = true;
+        bool found = false;
         for (int i = 0; i < 8; i++) {
             if (magic[i] && magic[i] == (unsigned char)buf[0]) {
                 found = true;
@@ -313,14 +321,14 @@ class M1LX : public ModH_ {
             }
         }
         if (found) {
-            // printf("%d,%d\n", buf[1], buf[2]);
             if (big) {
                 return (size_t)boost::endian::detail::load_big_endian<T, bits>(buf + 1);
             } else {
                 return (size_t)boost::endian::detail::load_little_endian<T, bits>(buf + 1);
             }
         } else {
-            return -1;
+            V_LOG_W("M1LX receive unknow magic(%x)", (unsigned char)buf[0]);
+            return 0;
         }
     }
 };
