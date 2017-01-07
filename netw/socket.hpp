@@ -88,16 +88,16 @@ class Data_ : public boost::enable_shared_from_this<Data_> {
 
    public:
     Data_(size_t len, bool iss = false);
-    Data_(const char *buf, size_t len);
+    Data_(const char *buf, size_t len,bool iss=false);
     ~Data_();
     Data share();
     char operator[](size_t i);
     virtual void print(char *buf = 0);
-    Data sub(size_t offset, size_t len);
+    Data sub(size_t offset, size_t len,bool iss=false);
     bool cmp(const char *val);
     int inflate(size_t offset = 0);
 };
-Data BuildData(const char *buf, size_t len);
+Data BuildData(const char *buf, size_t len,bool iss=false);
 Data BuildData(size_t len, bool iss = false);
 
 class Writer_ : public boost::enable_shared_from_this<Writer_> {
