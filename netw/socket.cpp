@@ -52,10 +52,10 @@ Data_::Data_(size_t len, bool iss) {
     this->len = len;
 }
 
-Data_::Data_(const char *buf, size_t len,bool iss) {
+Data_::Data_(const char *buf, size_t len, bool iss) {
     if (iss) {
         data = new char[len + 1];
-        data[len]=0;
+        data[len] = 0;
     } else {
         data = new char[len];
     }
@@ -70,7 +70,7 @@ Data_::~Data_() {
 
 Data Data_::share() { return shared_from_this(); }
 char Data_::operator[](size_t i) { return data[i]; }
-Data BuildData(const char *buf, size_t len,bool iss) { return Data(new Data_(buf, len,iss)); }
+Data BuildData(const char *buf, size_t len, bool iss) { return Data(new Data_(buf, len, iss)); }
 Data BuildData(size_t len, bool iss) { return Data(new Data_(len, iss)); }
 void Data_::print(char *buf) {
     char tbuf_[102400];
@@ -88,7 +88,7 @@ void Data_::print(char *buf) {
     }
 }
 
-Data Data_::sub(size_t offset, size_t len,bool iss) { return BuildData(this->data + offset, len,iss); }
+Data Data_::sub(size_t offset, size_t len, bool iss) { return BuildData(this->data + offset, len, iss); }
 
 bool Data_::cmp(const char *val) {
     if (len) {
@@ -156,9 +156,7 @@ Cmd Cmd_::slice(size_t offset, size_t len) {
 
 char Cmd_::charAt(size_t idx) { return data->data[idx]; }
 
-uint64_t Cmd_::Id(){
-    return writer->Id();
-}
+uint64_t Cmd_::Id() { return writer->Id(); }
 
 TCP_::TCP_(asio::io_service &ios, CmdH cmd, ConH con) : ios(ios), sck(ios), cmd(cmd), con(con) {
     mod = ModH(new M1L2());
@@ -381,7 +379,7 @@ void Connector_::connect(const char *addr, unsigned short port, boost::system::e
 void Connector_::connect(asio::ip::basic_endpoint<ntcp> remote, boost::system::error_code &ec) {
     if (local.port()) {
         this->bind(local, ec);
-        if(ec){
+        if (ec) {
             return;
         }
     } else {

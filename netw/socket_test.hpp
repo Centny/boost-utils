@@ -53,6 +53,15 @@ BOOST_AUTO_TEST_CASE(TestShared) {
     //  boost::shared_ptr<A > c2(new C<int>);
     printf("%s\n", "test shared ptr done...");
 }
+typedef boost::shared_ptr<A> APtr;
+
+BOOST_AUTO_TEST_CASE(TestShared2) {
+    APtr a = APtr(new A);
+    printf("%lu\n", a.use_count());
+    APtr b = a;
+    printf("%lu\n", b.use_count());
+    printf("%s\n", "test shared ptr done...");
+}
 
 class TestConH : public ConH_ {
    public:

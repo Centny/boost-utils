@@ -88,16 +88,16 @@ class Data_ : public boost::enable_shared_from_this<Data_> {
 
    public:
     Data_(size_t len, bool iss = false);
-    Data_(const char *buf, size_t len,bool iss=false);
+    Data_(const char *buf, size_t len, bool iss = false);
     ~Data_();
     Data share();
     char operator[](size_t i);
     virtual void print(char *buf = 0);
-    Data sub(size_t offset, size_t len,bool iss=false);
+    Data sub(size_t offset, size_t len, bool iss = false);
     bool cmp(const char *val);
     int inflate(size_t offset = 0);
 };
-Data BuildData(const char *buf, size_t len,bool iss=false);
+Data BuildData(const char *buf, size_t len, bool iss = false);
 Data BuildData(size_t len, bool iss = false);
 
 class Writer_ : public boost::enable_shared_from_this<Writer_> {
@@ -161,7 +161,7 @@ class UDP_ : public Writer_ {
    public:
     asio::io_service &ios;
     Monitor M;
-    uint16_t tag=0;
+    uint16_t tag = 0;
     basic_endpoint<nudp> remote;
 
    public:
@@ -219,7 +219,7 @@ class TCP_ : public Writer_ {
     CmdH cmd;
     ConH con;
     ModH mod;
-    uint16_t tag=0;
+    uint16_t tag = 0;
     char cbuf[102400];
     asio::io_service &ios;
     asio::basic_stream_socket<ntcp> sck;
