@@ -156,6 +156,10 @@ Cmd Cmd_::slice(size_t offset, size_t len) {
 
 char Cmd_::charAt(size_t idx) { return data->data[idx]; }
 
+uint64_t Cmd_::Id(){
+    return writer->Id();
+}
+
 TCP_::TCP_(asio::io_service &ios, CmdH cmd, ConH con) : ios(ios), sck(ios), cmd(cmd), con(con) {
     mod = ModH(new M1L2());
 }
@@ -377,6 +381,9 @@ void Connector_::connect(const char *addr, unsigned short port, boost::system::e
 void Connector_::connect(asio::ip::basic_endpoint<ntcp> remote, boost::system::error_code &ec) {
     if (local.port()) {
         this->bind(local, ec);
+        if(ec){
+            return;
+        }
     } else {
         this->sck.open(local.protocol());
         this->sck.set_option(tcp::no_delay(true));

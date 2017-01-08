@@ -134,6 +134,7 @@ class Cmd_ {
     virtual size_t clength();
     virtual Cmd slice(size_t offset, size_t len = 0);
     virtual char charAt(size_t idx);
+    virtual uint64_t Id();
 };
 
 template <typename T>
@@ -160,6 +161,7 @@ class UDP_ : public Writer_ {
    public:
     asio::io_service &ios;
     Monitor M;
+    uint16_t tag=0;
     basic_endpoint<nudp> remote;
 
    public:
@@ -217,6 +219,7 @@ class TCP_ : public Writer_ {
     CmdH cmd;
     ConH con;
     ModH mod;
+    uint16_t tag=0;
     char cbuf[102400];
     asio::io_service &ios;
     asio::basic_stream_socket<ntcp> sck;
