@@ -255,7 +255,9 @@ class Connector_ : public TCP_ {
     Connector_(asio::io_service &ios, CmdH cmd, ConH con);
     virtual void connect(const asio::ip::address &addr, unsigned short port, boost::system::error_code &ec);
     virtual void connect(const char *addr, unsigned short port, boost::system::error_code &err);
+    virtual void connect(uint32_t addr, unsigned short port, boost::system::error_code &err);
     virtual void connect(asio::ip::basic_endpoint<ntcp> remote, boost::system::error_code &ec);
+    virtual void setlocal(uint32_t port);
     Connector share();
     virtual std::string address();
 };
