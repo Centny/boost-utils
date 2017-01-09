@@ -184,7 +184,7 @@ void TCP_::read(size_t exp) {
 void TCP_::readed(const system::error_code &err, size_t transferred) {
     auto bs = share();
     if (err) {
-        V_LOG_E("BasicSocket readed error(%d), will close", err.value());
+        V_LOG_E("BasicSocket(%llu,%x) readed error(%d), will close", this->Id(), tag, err.value());
         con->OnClose(bs, err);
         close();
         return;
