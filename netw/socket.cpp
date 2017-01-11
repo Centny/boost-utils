@@ -65,7 +65,7 @@ Data_::Data_(const char *buf, size_t len, bool iss) {
 
 Data_::~Data_() {
     delete data;
-    //V_LOG_FREE("%s", "Data_ free...");
+    // V_LOG_FREE("%s", "Data_ free...");
 }
 
 Data Data_::share() { return shared_from_this(); }
@@ -372,8 +372,8 @@ void Connector_::connect(const asio::ip::address &addr, unsigned short port, boo
     connect(asio::ip::basic_endpoint<ntcp>(addr, port), ec);
 }
 
-void Connector_::connect(uint32_t addr, unsigned short port, boost::system::error_code &err){
-    connect(asio::ip::address_v4(addr),port, err);
+void Connector_::connect(uint32_t addr, unsigned short port, boost::system::error_code &err) {
+    connect(asio::ip::address_v4(addr), port, err);
 }
 
 void Connector_::connect(const char *addr, unsigned short port, boost::system::error_code &err) {
@@ -394,9 +394,7 @@ void Connector_::connect(asio::ip::basic_endpoint<ntcp> remote, boost::system::e
     this->sck.async_connect(remote, cback);
 }
 
-void Connector_::setlocal(uint32_t port){
-    local=asio::ip::basic_endpoint<ntcp>(asio::ip::address_v4::any(),port);
-}
+void Connector_::setlocal(uint32_t port) { local = asio::ip::basic_endpoint<ntcp>(asio::ip::address_v4::any(), port); }
 
 void Connector_::connected(const boost::system::error_code &err) {
     if (err) {
@@ -415,7 +413,7 @@ void Connector_::connected(const boost::system::error_code &err) {
 
 Connector Connector_::share() { return boost::dynamic_pointer_cast<Connector_>(Writer_::share()); }
 
-std::string Connector_::address() { return ep_address(local); }
+std::string Connector_::address() { return "(" + ep_address(local) + "," + sck_address(sck) + ")"; }
 
 Connector BuildConnector(asio::io_service &ios, CmdH cmd, ConH con) { return Connector(new Connector_(ios, cmd, con)); }
 

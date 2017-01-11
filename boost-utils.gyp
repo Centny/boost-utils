@@ -14,6 +14,8 @@
             'sources': [
                 'endian/endian.hpp',
                 'endian/endian.cpp',
+                'fs/cached_file.hpp',
+                'fs/cached_file.cpp',
                 'netw/socket.hpp',
                 'netw/socket.cpp',
                 'log/log.cpp',
@@ -52,6 +54,7 @@
             ],
             'sources': [
                 'endian/endian_test.hpp',
+                'fs/cached_file_test.hpp',
                 'netw/socket_test.hpp',
                 'log/log_test.hpp',
                 'other_test.hpp',
@@ -87,6 +90,8 @@
                 '/usr/include',
             ],
             'sources': [
+                'fs/cached_file_test_c.hpp',
+                'netw/socket_test_c.hpp',
                 'test/console_test.cpp',
             ],
             'dependencies': [
