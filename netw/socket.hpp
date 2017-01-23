@@ -14,18 +14,19 @@
 #include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/endian/buffers.hpp>
-#include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 #include <iostream>
 #include <set>
 #include <sstream>
 #include <string>
 #include "../log/log.hpp"
+#include "../tools/data.hpp"
 
 namespace butils {
 namespace netw {
 using namespace boost::asio::ip;
 using namespace boost;
+using namespace tools;
 
 class CmdH_;
 class ConH_;
@@ -38,8 +39,6 @@ using ntcp = boost::asio::ip::tcp;
 using nudp = boost::asio::ip::udp;
 class Cmd_;
 using Cmd = boost::shared_ptr<Cmd_>;
-class Data_;
-using Data = boost::shared_ptr<Data_>;
 class Writer_;
 using Writer = boost::shared_ptr<Writer_>;
 class UDP_;
@@ -52,8 +51,6 @@ class Acceptor_;
 using Acceptor = boost::shared_ptr<Acceptor_>;
 class Connector_;
 using Connector = boost::shared_ptr<Connector_>;
-
-int zinflate(const void *src, size_t srcLen, void *dst, size_t dstLen, size_t &out);
 
 // the mod handler for socket frame
 class ModH_ {
@@ -80,25 +77,6 @@ class ConH_ {
     // event on socket close.
     virtual void OnClose(TCP s, const boost::system::error_code &ec) = 0;
 };
-
-class Data_ : public boost::enable_shared_from_this<Data_> {
-   public:
-    char *data;
-    size_t len;
-
-   public:
-    Data_(size_t len, bool iss = false);
-    Data_(const char *buf, size_t len, bool iss = false);
-    ~Data_();
-    Data share();
-    char operator[](size_t i);
-    virtual void print(char *buf = 0);
-    Data sub(size_t offset, size_t len, bool iss = false);
-    bool cmp(const char *val);
-    int inflate(size_t offset = 0);
-};
-Data BuildData(const char *buf, size_t len, bool iss = false);
-Data BuildData(size_t len, bool iss = false);
 
 class Writer_ : public boost::enable_shared_from_this<Writer_> {
    protected:
@@ -320,7 +298,7 @@ class M1LX : public ModH_ {
     virtual size_t parse(const char *buf) {
         bool found = false;
         for (int i = 0; i < 8; i++) {
-            if (magic[i] && magic[i] == (unsigned char)buf[0]) {
+            if (magic[i] == (unsigned char)buf[0]) {
                 found = true;
                 break;
             }
@@ -332,7 +310,9 @@ class M1LX : public ModH_ {
                 return (size_t)boost::endian::detail::load_little_endian<T, bits>(buf + 1);
             }
         } else {
-            V_LOG_W("M1LX receive unknow magic(%x)", (unsigned char)buf[0]);
+            V_LOG_W("M1LX receive unknow magic(%x), access(%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x)",
+                    (unsigned char)buf[0], magic[0], magic[1], magic[2], magic[3], magic[4], magic[5], magic[6],
+                    magic[7]);
             return 0;
         }
     }

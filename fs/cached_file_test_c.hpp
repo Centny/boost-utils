@@ -14,7 +14,7 @@ using namespace butils::fs;
 
 int cached_file_c(int argc, char **argv) {
     boost::filesystem::path p("/tmp/a.dat");
-    CachedFile cf(p,1000000);
+    CachedFile cf(p, 1000000);
     cf.close();
     printf("%s\n", "all done...");
     return 0;

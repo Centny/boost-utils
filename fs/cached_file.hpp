@@ -19,7 +19,7 @@ class CachedFile {
 
    public:
     CachedFile(boost::filesystem::path& path, size_t size, const char* csuf = ".xdm", const char* tsuf = ".xcf");
-    virtual void write(size_t offset,void* buf,size_t len);
+    virtual void write(size_t offset, void* buf, size_t len);
     virtual void close();
 };
 }

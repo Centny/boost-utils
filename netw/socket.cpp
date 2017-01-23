@@ -7,113 +7,15 @@
 //
 
 #include "socket.hpp"
-#include <zlib.h>
 #include <boost/pointer_cast.hpp>
 #include <boost/shared_ptr.hpp>
 #include "../log/log.hpp"
 namespace butils {
 namespace netw {
 
-int zinflate(const void *src, size_t srcLen, void *dst, size_t dstLen, size_t &out) {
-    z_stream strm = {0};
-    strm.total_in = strm.avail_in = srcLen;
-    strm.total_out = strm.avail_out = dstLen;
-    strm.next_in = (Bytef *)src;
-    strm.next_out = (Bytef *)dst;
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    int err = -1;
-    err = inflateInit2(&strm, (15 + 32));  // 15 window bits, and the +32 tells zlib to to detect if using gzip or zlib
-    if (err != Z_OK) {
-        inflateEnd(&strm);
-        return err;
-    }
-    err = inflate(&strm, Z_FINISH);
-    if (err == Z_STREAM_END) {
-        out = strm.total_out;
-        err = 0;
-    }
-    inflateEnd(&strm);
-    return err;
-}
 // the basic acceptor sequence.
 static uint64_t sequence = 0;
 static boost::shared_mutex sequence_lck;
-
-Data_::Data_(size_t len, bool iss) {
-    if (iss) {
-        data = new char[len + 1];
-        memset(data, 0, len + 1);
-    } else {
-        data = new char[len];
-        memset(data, 0, len);
-    }
-    this->len = len;
-}
-
-Data_::Data_(const char *buf, size_t len, bool iss) {
-    if (iss) {
-        data = new char[len + 1];
-        data[len] = 0;
-    } else {
-        data = new char[len];
-    }
-    memcpy(data, buf, len);
-    this->len = len;
-}
-
-Data_::~Data_() {
-    delete data;
-    // V_LOG_FREE("%s", "Data_ free...");
-}
-
-Data Data_::share() { return shared_from_this(); }
-char Data_::operator[](size_t i) { return data[i]; }
-Data BuildData(const char *buf, size_t len, bool iss) { return Data(new Data_(buf, len, iss)); }
-Data BuildData(size_t len, bool iss) { return Data(new Data_(len, iss)); }
-void Data_::print(char *buf) {
-    char tbuf_[102400];
-    char *tbuf = buf;
-    if (tbuf == 0) {
-        tbuf = tbuf_;
-    }
-    size_t tlen = sprintf(tbuf, "Data(%ld):", len);
-    for (size_t i = 0; i < len; i++) {
-        tlen += sprintf(tbuf + tlen, "%02x ", (uint8_t)data[i]);
-    }
-    tbuf[tlen] = 0;
-    if (buf == 0) {
-        printf("%s\n", tbuf);
-    }
-}
-
-Data Data_::sub(size_t offset, size_t len, bool iss) { return BuildData(this->data + offset, len, iss); }
-
-bool Data_::cmp(const char *val) {
-    if (len) {
-        return strcmp(this->data, val);
-    } else {
-        return false;
-    }
-}
-
-int Data_::inflate(size_t offset) {
-    char *ndata = new char[2 * len];
-    if (offset) {
-        memcpy(ndata, data, offset);
-    }
-    size_t out = 0;
-    if (zinflate(data + offset, len - offset, ndata + offset, 2 * len - offset, out)) {
-        delete[] ndata;
-        return -1;
-    } else {
-        delete data;
-        data = ndata;
-        len = offset + out;
-        return 0;
-    }
-}
 
 Writer_::Writer_() {
     sequence_lck.lock();
@@ -143,7 +45,7 @@ size_t Cmd_::clength() { return length; }
 
 Cmd Cmd_::slice(size_t offset, size_t len) {
     auto cmd = Cmd(new Cmd_);
-    cmd->data = data->share();
+    cmd->data = data;
     cmd->writer = writer;
     cmd->offset = offset;
     if (len < 1) {

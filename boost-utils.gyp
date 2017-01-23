@@ -12,6 +12,12 @@
                 '/usr/include',
             ],
             'sources': [
+                'tools/fail.hpp',
+                'tools/fail.cpp',
+                'tools/sqlite.hpp',
+                'tools/sqlite.cpp',
+                'tools/data.hpp',
+                'tools/data.cpp',
                 'endian/endian.hpp',
                 'endian/endian.cpp',
                 'fs/cached_file.hpp',
@@ -27,17 +33,21 @@
             'conditions': [
                 ['OS=="mac"', {
                     'xcode_settings': {
-                        'MACOSX_DEPLOYMENT_TARGET': '10.5',
+                        'MACOSX_DEPLOYMENT_TARGET': '10.11',
                         'LD_DYLIB_INSTALL_NAME': "@rpath/$(EXECUTABLE_PATH)",
                         'OTHER_CFLAGS': [
                             "<(other_cflags)",
                         ],
                         'OTHER_LDFLAGS': [
+                            "-stdlib=libc++",
                             "-L/usr/local/lib",
                             '-lboost_system',
                             "-lboost_iostreams",
                             "-lboost_thread",
                             "-lz",
+                            "-lsqlite3",
+                            "-lboost_regex",
+                            "-lboost_filesystem",
                             "-Wl,-rpath,.",
                             "<(other_lflags)",
                         ],
@@ -53,6 +63,8 @@
                 '/usr/include',
             ],
             'sources': [
+                'tools/data_test.hpp',
+                'tools/sqlite_test.hpp',
                 'endian/endian_test.hpp',
                 'fs/cached_file_test.hpp',
                 'netw/socket_test.hpp',
@@ -66,8 +78,9 @@
             'conditions': [
                 ['OS=="mac"', {
                     'xcode_settings': {
-                        'MACOSX_DEPLOYMENT_TARGET': '10.5',
+                        'MACOSX_DEPLOYMENT_TARGET': '10.11',
                         'OTHER_LDFLAGS': [
+                            "-stdlib=libc++",
                             "-L.",
                             "-L/usr/local/lib",
                             '-lboost_system',
@@ -76,6 +89,9 @@
                             "-lboost_unit_test_framework",
                             "-lboost_utils",
                             "-lz",
+                            "-lsqlite3",
+                            "-lboost_regex",
+                            "-lboost_filesystem",
                             "-Wl,-rpath,.",
                         ],
                     },
@@ -100,8 +116,9 @@
             'conditions': [
                 ['OS=="mac"', {
                     'xcode_settings': {
-                        'MACOSX_DEPLOYMENT_TARGET': '10.5',
+                        'MACOSX_DEPLOYMENT_TARGET': '10.11',
                         'OTHER_LDFLAGS': [
+                            "-stdlib=libc++",
                             "-L.",
                             "-L/usr/local/lib",
                             '-lboost_system',
@@ -109,6 +126,9 @@
                             "-lboost_thread",
                             "-lboost_utils",
                             "-lz",
+                            "-lsqlite3",
+                            "-lboost_regex",
+                            "-lboost_filesystem",
                             "-Wl,-rpath,.",
                         ],
                     },
