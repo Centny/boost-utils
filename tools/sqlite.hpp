@@ -21,7 +21,7 @@
 
 namespace butils {
 namespace tools {
-//the sqlite error message by sqlite code.
+// the sqlite error message by sqlite code.
 const char* sqlite_emsg(int code);
 /*
  the sqlite prepare stmt for query mulit row data.
@@ -70,7 +70,6 @@ class SQLite_ {
     virtual STMT prepare(Data& blob, const char* fmt, ...);
 };
 typedef boost::shared_ptr<SQLite_> SQLite;
-
 }
 }
 

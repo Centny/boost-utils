@@ -31,6 +31,8 @@ Fail_::Fail_(size_t bsize, int code, const char* fmt, ...) throw() : code(code) 
 const char* Fail_::what() const throw() { return err; }
 
 Fail_::~Fail_() throw() {
-    delete err;
+    if (err) {
+        delete err;
+    }
     err = 0;
 }

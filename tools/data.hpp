@@ -29,7 +29,7 @@ class Data_ {
     virtual char at(size_t i);
     virtual void print(char *buf = 0);
     virtual Data sub(size_t offset, size_t len, bool iss = false);
-    virtual bool cmp(const char *val, size_t len);
+    virtual bool cmp(const char *val, size_t len = 0);
     virtual bool cmp(Data &data);
     virtual bool cmp(Data_ *data);
     virtual int inflate(size_t offset = 0);

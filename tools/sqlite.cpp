@@ -149,7 +149,7 @@ SQLite_::~SQLite_() {
 void SQLite_::init(const char* spath, std::map<int, const char*> vsql) {
     int res = sqlite3_open(spath, &db);
     if (res != SQLITE_OK) {
-        throw Fail("SQLite_ open db(%s) fail with %s", spath, sqlite_emsg(res));
+        throw LFail(strlen(spath) + 64, "SQLite_ open db(%s) fail with %s", spath, sqlite_emsg(res));
     }
     int ver = version();
     if (ver == 0) {
@@ -195,7 +195,7 @@ void SQLite_::execscript(const char* sql) {
         }
         res = sqlite3_exec(db, s.c_str(), NULL, NULL, NULL);
         if (res != SQLITE_OK) {
-            throw Fail("SQLite_ execute sql(%s) fail with %s", s.c_str(), sqlite_emsg(res));
+            throw LFail(strlen(sql) + 64, "SQLite_ execute sql(%s) fail with %s", s.c_str(), sqlite_emsg(res));
         }
     }
 }
@@ -207,7 +207,7 @@ void SQLite_::exec(const char* fmt, ...) {
     va_end(args);
     auto res = sqlite3_exec(db, buf, NULL, NULL, NULL);
     if (res != SQLITE_OK) {
-        throw Fail("SQLite_ update by sql(%s) fail with %s", buf, sqlite_emsg(res));
+        throw LFail(strlen(buf) + 64, "SQLite_ update by sql(%s) fail with %s", buf, sqlite_emsg(res));
     }
 }
 

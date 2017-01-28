@@ -108,6 +108,9 @@ void Data_::print(char *buf) {
 Data Data_::sub(size_t offset, size_t len, bool iss) { return BuildData(data + offset, len, iss); }
 
 bool Data_::cmp(const char *val, size_t len) {
+    if (len < 1) {
+        len = strlen(val);
+    }
     if (this->len != len) {
         return false;
     }
