@@ -64,6 +64,7 @@ Data_::Data_(size_t len, bool iss) {
     if (iss) {
         data = new char[len + 1];
         memset(data, 0, len + 1);
+        this->iss = iss;
     } else {
         data = new char[len];
         memset(data, 0, len);
@@ -75,6 +76,7 @@ Data_::Data_(const char *buf, size_t len, bool iss) {
     if (iss) {
         data = new char[len + 1];
         data[len] = 0;
+        this->iss = iss;
     } else {
         data = new char[len];
     }

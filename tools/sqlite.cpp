@@ -94,7 +94,9 @@ const char* sqlite_emsg(int code) {
 
 STMT_::STMT_(sqlite3* db) : db(db), stmt(0) {}
 
-STMT_::~STMT_() {
+STMT_::~STMT_() { finalize(); }
+
+void STMT_::finalize() {
     if (stmt) {
         sqlite3_finalize(stmt);
         stmt = 0;
@@ -104,20 +106,30 @@ STMT_::~STMT_() {
 void STMT_::prepare(const char* sql) {
     int res = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (res != SQLITE_OK) {
-        throw LFail(strlen(sql) + 64, "STMT_ prepare by sql(%s) fail with %s", sql, sqlite_emsg(res));
+        throw LFail(strlen(sql) + 64, "STMT_ prepare by sql(%s) fail with %s,%s", sql, sqlite_emsg(res),
+                    sqlite3_errmsg(db));
     }
 }
 
-void STMT_::prepare(Data& blob, const char* sql) {
-    int res = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (res != SQLITE_OK) {
-        throw LFail(strlen(sql) + 64, "STMT_ prepare by sql(%s) fail with %s", sql, sqlite_emsg(res));
-    }
-    this->blob = blob;
-    sqlite3_bind_blob(stmt, 1, blob->data, blob->len, NULL);
-}
+// void STMT_::prepare(Data& blob, const char* sql) {
+//    int res = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+//    if (res != SQLITE_OK) {
+//        throw LFail(strlen(sql) + 64, "STMT_ prepare by sql(%s) fail with %s", sql, sqlite_emsg(res));
+//    }
+//    this->blob = blob;
+//    sqlite3_bind_blob(stmt, 1, blob->data, blob->len, NULL);
+//}
 
-bool STMT_::step() { return sqlite3_step(stmt) == SQLITE_ROW; }
+bool STMT_::step() {
+    int res = sqlite3_step(stmt);
+    if (res == SQLITE_ROW) {
+        return true;
+    } else if (res == SQLITE_DONE || res == SQLITE_OK) {
+        return false;
+    } else {
+        throw Fail("STMT_ step fail with %s,%s", sqlite_emsg(res), sqlite3_errmsg(db));
+    }
+}
 
 long STMT_::intv(int idx) { return sqlite3_column_int64(stmt, idx); }
 
@@ -125,13 +137,57 @@ double STMT_::floatv(int idx) { return sqlite3_column_double(stmt, idx); }
 
 Data STMT_::stringv(int idx) {
     auto text = sqlite3_column_text(stmt, idx);
-    return BuildData((const char*)text, strlen((const char*)text));
+    if (text) {
+        return BuildData((const char*)text, strlen((const char*)text), true);
+    } else {
+        return Data();
+    }
 }
 
 Data STMT_::blobv(int idx) {
     auto blob = sqlite3_column_blob(stmt, idx);
-    auto len = sqlite3_column_bytes(stmt, idx);
-    return BuildData((const char*)blob, len);
+    if (blob) {
+        auto len = sqlite3_column_bytes(stmt, idx);
+        return BuildData((const char*)blob, len);
+    } else {
+        return Data();
+    }
+}
+
+void STMT_::bind(int idx, Data& val) {
+    int res;
+    if (val->iss) {
+        res = sqlite3_bind_text(stmt, idx, val->data, val->len, NULL);
+    } else {
+        res = sqlite3_bind_blob(stmt, idx, val->data, val->len, NULL);
+    }
+    if (res != SQLITE_OK) {
+        throw Fail("STMT_ bind data(%lu,%d) fail with %s,%s", val->len, val->iss, sqlite_emsg(res), sqlite3_errmsg(db));
+    }
+}
+void STMT_::bind(int idx, double val) {
+    int res = sqlite3_bind_double(stmt, idx, val);
+    if (res != SQLITE_OK) {
+        throw Fail("STMT_ bind double fail with %s,%s", sqlite_emsg(res), sqlite3_errmsg(db));
+    }
+}
+void STMT_::bind(int idx, int val) {
+    int res = sqlite3_bind_int(stmt, idx, val);
+    if (res != SQLITE_OK) {
+        throw Fail("STMT_ bind int fail with %s,%s", sqlite_emsg(res), sqlite3_errmsg(db));
+    }
+}
+void STMT_::bind(int idx, sqlite3_int64 val) {
+    int res = sqlite3_bind_int64(stmt, idx, val);
+    if (res != SQLITE_OK) {
+        throw Fail("STMT_ bind int64 fail with %s,%s", sqlite_emsg(res), sqlite3_errmsg(db));
+    }
+}
+void STMT_::bind(int idx) {
+    int res = sqlite3_bind_null(stmt, idx);
+    if (res != SQLITE_OK) {
+        throw Fail("STMT_ bind null fail with %s,%s", sqlite_emsg(res), sqlite3_errmsg(db));
+    }
 }
 
 SQLite_::SQLite_(int cver) {
@@ -149,7 +205,8 @@ SQLite_::~SQLite_() {
 void SQLite_::init(const char* spath, std::map<int, const char*> vsql) {
     int res = sqlite3_open(spath, &db);
     if (res != SQLITE_OK) {
-        throw LFail(strlen(spath) + 64, "SQLite_ open db(%s) fail with %s", spath, sqlite_emsg(res));
+        throw LFail(strlen(spath) + 64, "SQLite_ open db(%s) fail with %s,%s", spath, sqlite_emsg(res),
+                    sqlite3_errmsg(db));
     }
     int ver = version();
     if (ver == 0) {
@@ -172,11 +229,11 @@ int SQLite_::version() {
             return ver;
         } else {
             sqlite3_finalize(stmt);
-            throw Fail("SQLite_ get version row fail with %s", sqlite_emsg(res));
+            throw Fail("SQLite_ get version row fail with %s,%s", sqlite_emsg(res), sqlite3_errmsg(db));
         }
     }
     if (res != SQLITE_ERROR) {
-        throw Fail("SQLite_ get version fail with %s", sqlite_emsg(res));
+        throw Fail("SQLite_ get version fail with %s,%s", sqlite_emsg(res), sqlite3_errmsg(db));
     }
     sprintf(buf, VER_SQL, cver);
     execscript(buf);
@@ -195,7 +252,8 @@ void SQLite_::execscript(const char* sql) {
         }
         res = sqlite3_exec(db, s.c_str(), NULL, NULL, NULL);
         if (res != SQLITE_OK) {
-            throw LFail(strlen(sql) + 64, "SQLite_ execute sql(%s) fail with %s", s.c_str(), sqlite_emsg(res));
+            throw LFail(strlen(sql) + 64, "SQLite_ execute sql(%s) fail with %s,%s", s.c_str(), sqlite_emsg(res),
+                        sqlite3_errmsg(db));
         }
     }
 }
@@ -207,7 +265,8 @@ void SQLite_::exec(const char* fmt, ...) {
     va_end(args);
     auto res = sqlite3_exec(db, buf, NULL, NULL, NULL);
     if (res != SQLITE_OK) {
-        throw LFail(strlen(buf) + 64, "SQLite_ update by sql(%s) fail with %s", buf, sqlite_emsg(res));
+        throw LFail(strlen(buf) + 64, "SQLite_ update by sql(%s) fail with %s,%s", buf, sqlite_emsg(res),
+                    sqlite3_errmsg(db));
     }
 }
 
@@ -219,13 +278,15 @@ void SQLite_::exec(Data& blob, const char* fmt, ...) {
     sqlite3_stmt* stmt;
     int res = sqlite3_prepare_v2(db, buf, -1, &stmt, NULL);
     if (res != SQLITE_OK) {
-        throw LFail(strlen(buf) + 64, "SQLite_ update by sql(%s) fail with %s", buf, sqlite_emsg(res));
+        throw LFail(strlen(buf) + 64, "SQLite_ update by sql(%s) fail with %s,%s", buf, sqlite_emsg(res),
+                    sqlite3_errmsg(db));
     }
     sqlite3_bind_blob(stmt, 1, blob->data, blob->len, NULL);
     res = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
     if (res != SQLITE_DONE) {
-        throw LFail(strlen(buf) + 64, "SQLite_ update by sql(%s) fail with %s", buf, sqlite_emsg(res));
+        throw LFail(strlen(buf) + 64, "SQLite_ update by sql(%s) fail with %s,%s", buf, sqlite_emsg(res),
+                    sqlite3_errmsg(db));
     }
 }
 
@@ -237,7 +298,8 @@ long SQLite_::intv(const char* fmt, ...) {
     sqlite3_stmt* stmt;
     int res = sqlite3_prepare_v2(db, buf, -1, &stmt, NULL);
     if (res != SQLITE_OK) {
-        throw LFail(strlen(buf) + 64, "SQLite_ intv by sql(%s) fail with %s", buf, sqlite_emsg(res));
+        throw LFail(strlen(buf) + 64, "SQLite_ intv by sql(%s) fail with %s,%s", buf, sqlite_emsg(res),
+                    sqlite3_errmsg(db));
     }
     res = sqlite3_step(stmt);
     if (res == SQLITE_ROW) {
@@ -258,7 +320,8 @@ double SQLite_::floatv(const char* fmt, ...) {
     sqlite3_stmt* stmt;
     int res = sqlite3_prepare_v2(db, buf, -1, &stmt, NULL);
     if (res != SQLITE_OK) {
-        throw LFail(strlen(buf) + 64, "SQLite_ floatev by sql(%s) fail with %s", buf, sqlite_emsg(res));
+        throw LFail(strlen(buf) + 64, "SQLite_ floatev by sql(%s) fail with %s,%s", buf, sqlite_emsg(res),
+                    sqlite3_errmsg(db));
     }
     res = sqlite3_step(stmt);
     if (res == SQLITE_ROW) {
@@ -279,7 +342,8 @@ Data SQLite_::stringv(const char* fmt, ...) {
     sqlite3_stmt* stmt;
     int res = sqlite3_prepare_v2(db, buf, -1, &stmt, NULL);
     if (res != SQLITE_OK) {
-        throw LFail(strlen(buf) + 64, "SQLite_ stringv by sql(%s) fail with %s", buf, sqlite_emsg(res));
+        throw LFail(strlen(buf) + 64, "SQLite_ stringv by sql(%s) fail with %s,%s", buf, sqlite_emsg(res),
+                    sqlite3_errmsg(db));
     }
     res = sqlite3_step(stmt);
     if (res == SQLITE_ROW) {
@@ -301,7 +365,8 @@ Data SQLite_::blobv(const char* fmt, ...) {
     sqlite3_stmt* stmt;
     int res = sqlite3_prepare_v2(db, buf, -1, &stmt, NULL);
     if (res != SQLITE_OK) {
-        throw LFail(strlen(buf) + 64, "SQLite_ blobv by sql(%s) fail with %s", buf, sqlite_emsg(res));
+        throw LFail(strlen(buf) + 64, "SQLite_ blobv by sql(%s) fail with %s,%s", buf, sqlite_emsg(res),
+                    sqlite3_errmsg(db));
     }
     res = sqlite3_step(stmt);
     if (res == SQLITE_ROW) {
@@ -326,14 +391,14 @@ STMT SQLite_::prepare(const char* fmt, ...) {
     return stmt;
 }
 
-STMT SQLite_::prepare(Data& blob, const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    vsprintf(buf, fmt, args);
-    va_end(args);
-    auto stmt = STMT(new STMT_(db));
-    stmt->prepare(blob, buf);
-    return stmt;
-}
+// STMT SQLite_::prepare(Data& blob, const char* fmt, ...) {
+//    va_list args;
+//    va_start(args, fmt);
+//    vsprintf(buf, fmt, args);
+//    va_end(args);
+//    auto stmt = STMT(new STMT_(db));
+//    stmt->prepare(blob, buf);
+//    return stmt;
+//}
 }
 }

@@ -27,36 +27,45 @@ using namespace butils::tools;
 BOOST_AUTO_TEST_CASE(db) {
     boost::filesystem::remove_all(boost::filesystem::path("t.db"));
     boost::filesystem::remove_all(boost::filesystem::path("t2.db"));
+    auto bdata = butils::tools::BuildData(3);
+    bdata->data[1] = 1;
+    //
+    std::map<int, const char*> vsql;
+    vsql[0] = TEST_SQL;
     {  // test crud
+        //
         auto lite = butils::tools::SQLite(new butils::tools::SQLite_(1));
-        std::map<int, const char*> vsql;
-        vsql[0] = TEST_SQL;
         lite->init("t.db", vsql);
-        auto ver = lite->version();
-        BOOST_CHECK_EQUAL(ver, 1);
-        long c1;
-        c1 = lite->intv("select count(*) from xxx");
-        BOOST_CHECK_EQUAL(c1, 0);
-        lite->exec("insert into xxx (name,value) values ('%s','%s')", "name", "vv");
-        c1 = lite->intv("select count(*) from xxx");
-        BOOST_CHECK_EQUAL(c1, 1);
-        lite->exec("update xxx set value='%s' where name='%s'", "123", "name");
-        c1 = lite->intv("select count(*) from xxx");
-        BOOST_CHECK_EQUAL(c1, 1);
-        BOOST_CHECK_EQUAL(lite->intv("select value from xxx"), 123);
-        BOOST_CHECK_EQUAL(lite->floatv("select value from xxx"), 123);
-        auto sval = lite->stringv("select value from xxx");
-        BOOST_CHECK_EQUAL(sval->cmp("123", 3), true);
-        auto bval = lite->blobv("select value from xxx");
-        BOOST_CHECK_EQUAL(bval->cmp("123", 3), true);
-        auto bdata = butils::tools::BuildData(3);
-        bdata->data[1] = 1;
-        lite->exec(bdata, "update xxx set value2=? where name='%s'", "name");
-        auto bval2 = lite->blobv("select value2 from xxx");
-        BOOST_CHECK_EQUAL(bval2->cmp(bdata), true);
+        {  // test version
+            auto ver = lite->version();
+            BOOST_CHECK_EQUAL(ver, 1);
+        }
+        {  // test crud
+            long c1;
+            c1 = lite->intv("select count(*) from xxx");
+            BOOST_CHECK_EQUAL(c1, 0);
+            lite->exec("insert into xxx (name,value) values ('%s','%s')", "name", "vv");
+            c1 = lite->intv("select count(*) from xxx");
+            BOOST_CHECK_EQUAL(c1, 1);
+            lite->exec("update xxx set value='%s' where name='%s'", "123", "name");
+            c1 = lite->intv("select count(*) from xxx");
+            BOOST_CHECK_EQUAL(c1, 1);
+            BOOST_CHECK_EQUAL(lite->intv("select value from xxx"), 123);
+            BOOST_CHECK_EQUAL(lite->floatv("select value from xxx"), 123);
+            auto sval = lite->stringv("select value from xxx");
+            BOOST_CHECK_EQUAL(sval->cmp("123", 3), true);
+            auto bval = lite->blobv("select value from xxx");
+            BOOST_CHECK_EQUAL(bval->cmp("123", 3), true);
+            lite->exec(bdata, "update xxx set value2=? where name='%s'", "name");
+            auto bval2 = lite->blobv("select value2 from xxx");
+            BOOST_CHECK_EQUAL(bval2->cmp(bdata), true);
+        }
         //
-        //
+        // test prepare
         {
+            lite->exec("delete from xxx");
+            lite->exec("insert into xxx (name,value) values ('%s','%s')", "name", "123");
+            lite->exec(bdata, "update xxx set value2=? where name='%s'", "name");
             auto stmt = lite->prepare("select name,value,value2 from xxx");
             while (stmt->step()) {
                 BOOST_CHECK_EQUAL(stmt->intv(1), 123);
@@ -69,17 +78,91 @@ BOOST_AUTO_TEST_CASE(db) {
                 BOOST_CHECK_EQUAL(bval1->cmp(bdata), true);
             }
         }
+        //
+        // test bind
         {
-            auto stmt = lite->prepare(bdata, "select name,value,value2 from xxx where value2=?");
+            lite->exec("delete from xxx");
+            lite->exec("insert into xxx (name,value) values ('%s','%s')", "name", "123");
+            lite->exec(bdata, "update xxx set value2=? where name='%s'", "name");
+            {  // bind char*
+                auto ustmt = lite->prepare("update xxx set value=? where name='%s'", "name");
+                auto val = BuildData("124", 3, true);
+                ustmt->bind(1, val);
+                ustmt->step();
+                auto stmt = lite->prepare("select name,value,value2 from xxx");
+                while (stmt->step()) {
+                    BOOST_CHECK_EQUAL(stmt->intv(1), 124);
+                    BOOST_CHECK_EQUAL(stmt->floatv(1), 124);
+                }
+            }
+            {  // bind blob
+                auto ustmt = lite->prepare("update xxx set value2=? where name='%s'", "name");
+                auto val = BuildData("125", 3, false);
+                ustmt->bind(1, val);
+                ustmt->step();
+                auto stmt = lite->prepare("select name,value,value2 from xxx");
+                while (stmt->step()) {
+                    auto bval1 = stmt->blobv(2);
+                    bval1->print();
+                    BOOST_CHECK_EQUAL(bval1->cmp("125", 3), true);
+                }
+            }
+            {  // bind int
+                auto ustmt = lite->prepare("update xxx set value=? where name='%s'", "name");
+                ustmt->bind(1, 126);
+                ustmt->step();
+                auto stmt = lite->prepare("select name,value,value2 from xxx");
+                while (stmt->step()) {
+                    BOOST_CHECK_EQUAL(stmt->intv(1), 126);
+                    BOOST_CHECK_EQUAL(stmt->floatv(1), 126);
+                }
+            }
+            {  // bind int64
+                auto ustmt = lite->prepare("update xxx set value=? where name='%s'", "name");
+                ustmt->bind(1, (sqlite3_int64)127);
+                ustmt->step();
+                auto stmt = lite->prepare("select name,value,value2 from xxx");
+                while (stmt->step()) {
+                    BOOST_CHECK_EQUAL(stmt->intv(1), 127);
+                    BOOST_CHECK_EQUAL(stmt->floatv(1), 127);
+                }
+            }
+            {  // bind double
+                auto ustmt = lite->prepare("update xxx set value=? where name='%s'", "name");
+                ustmt->bind(1, (double)128);
+                ustmt->step();
+                auto stmt = lite->prepare("select name,value,value2 from xxx");
+                while (stmt->step()) {
+                    BOOST_CHECK_EQUAL(stmt->intv(1), 128);
+                    BOOST_CHECK_EQUAL(stmt->floatv(1), 128);
+                }
+            }
+            {  // bind null
+                auto ustmt = lite->prepare("update xxx set value2=? where name='%s'", "name");
+                ustmt->bind(1);
+                ustmt->step();
+                auto stmt = lite->prepare("select name,value,value2 from xxx");
+                while (stmt->step()) {
+                    auto bval1 = stmt->blobv(2);
+                    bval1->print();
+                    BOOST_CHECK_EQUAL(bval1->len, 0);
+                }
+            }
+        }
+        //
+        // test prepare insert
+        {
+            lite->exec("delete from xxx");
+            auto ustmt = lite->prepare("insert into xxx (name,value) values (?,?)");
+            auto name = BuildData("name", 4, true);
+            auto val = BuildData("130", 3, true);
+            ustmt->bind(1, name);
+            ustmt->bind(2, val);
+            ustmt->step();
+            auto stmt = lite->prepare("select name,value,value2 from xxx");
             while (stmt->step()) {
-                BOOST_CHECK_EQUAL(stmt->intv(1), 123);
-                BOOST_CHECK_EQUAL(stmt->floatv(1), 123);
-                auto sval1 = stmt->stringv(0);
-                sval1->print();
-                BOOST_CHECK_EQUAL(sval1->cmp("name", 4), true);
-                auto bval1 = stmt->blobv(2);
-                bval1->print();
-                BOOST_CHECK_EQUAL(bval1->cmp(bdata), true);
+                BOOST_CHECK_EQUAL(stmt->intv(1), 130);
+                BOOST_CHECK_EQUAL(stmt->floatv(1), 130);
             }
         }
     }
@@ -230,13 +313,6 @@ BOOST_AUTO_TEST_CASE(db) {
         } catch (Fail_& f) {
             printf("%s\n", f.err);
         }
-        try {
-            auto bdata = butils::tools::BuildData(3);
-            auto tx = butils::tools::SQLite(new butils::tools::SQLite_(1));
-            tx->prepare(bdata, "selectxxname,value,value2 from xxx");
-        } catch (Fail_& f) {
-            printf("%s\n", f.err);
-        }
     }
     {  // test version error
         try {
@@ -256,6 +332,36 @@ BOOST_AUTO_TEST_CASE(db) {
             BOOST_CHECK_EQUAL(0, 1);
         } catch (Fail_& f) {
             printf("%s\n", f.err);
+        }
+    }
+    {  // test bind error
+        auto lite = butils::tools::SQLite(new butils::tools::SQLite_(1));
+        lite->init("t.db", vsql);
+        auto ustmt = lite->prepare("update xxx set value=? where name='%s'", "name");
+        try {
+            ustmt->bind(100, bdata);
+            BOOST_CHECK_EQUAL(0, 1);
+        } catch (...) {
+        }
+        try {
+            ustmt->bind(100, (double)1);
+            BOOST_CHECK_EQUAL(0, 1);
+        } catch (...) {
+        }
+        try {
+            ustmt->bind(100, 1);
+            BOOST_CHECK_EQUAL(0, 1);
+        } catch (...) {
+        }
+        try {
+            ustmt->bind(100, (sqlite3_int64)1);
+            BOOST_CHECK_EQUAL(0, 1);
+        } catch (...) {
+        }
+        try {
+            ustmt->bind(100);
+            BOOST_CHECK_EQUAL(0, 1);
+        } catch (...) {
         }
     }
     {  // test sqlite err message

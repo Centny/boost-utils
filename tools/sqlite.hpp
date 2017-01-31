@@ -35,13 +35,20 @@ class STMT_ {
    public:
     STMT_(sqlite3* db);
     virtual ~STMT_();
+    virtual void finalize();
     virtual void prepare(const char* sql);
-    virtual void prepare(Data& blob, const char* sql);
+    //    virtual void prepare(Data& blob, const char* sql);
     virtual bool step();
     virtual long intv(int idx);
     virtual double floatv(int idx);
     virtual Data stringv(int idx);
     virtual Data blobv(int idx);
+    //
+    virtual void bind(int idx, Data& val);
+    virtual void bind(int idx, double val);
+    virtual void bind(int idx, int val);
+    virtual void bind(int idx, sqlite3_int64 val);
+    virtual void bind(int idx);
 };
 typedef boost::shared_ptr<STMT_> STMT;
 /*
@@ -67,7 +74,7 @@ class SQLite_ {
     virtual Data blobv(const char* fmt, ...);
     //
     virtual STMT prepare(const char* fmt, ...);
-    virtual STMT prepare(Data& blob, const char* fmt, ...);
+    //    virtual STMT prepare(Data& blob, const char* fmt, ...);
 };
 typedef boost::shared_ptr<SQLite_> SQLite;
 }

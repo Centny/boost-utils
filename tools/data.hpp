@@ -21,6 +21,7 @@ class Data_ {
    public:
     char *data;
     size_t len;
+    bool iss;
 
    public:
     Data_(size_t len, bool iss = false);

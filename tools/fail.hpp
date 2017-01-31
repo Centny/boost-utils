@@ -27,7 +27,7 @@ class Fail_ : public std::exception {
 };
 
 #define Fail(fmt, args...) Fail_(256, fmt, args)
-#define LFail(bsize, fmt, args...) Fail_(bsize, 0, fmt, args)
+#define LFail(bsize, fmt, args...) Fail_(bsize + 1024, 0, fmt, args)
 #define CFail(code) Fail_(code)
 #define LCFail(bsize, code, fmt, args...) Fail_(bsize, code, fmt, args)
 
