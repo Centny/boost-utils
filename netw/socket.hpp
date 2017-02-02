@@ -319,6 +319,8 @@ class M1LX : public ModH_ {
 };
 typedef M1LX<uint16_t, 2> M1L2;
 typedef M1LX<uint32_t, 4> M1L4;
+//
+uint32_t cip2long(const char *ip);
 }
 }
 #endif /* socket_hpp */

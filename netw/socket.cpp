@@ -389,5 +389,10 @@ Acceptor BuildAcceptor(asio::io_service &ios, const basic_endpoint<ntcp> &endpoi
 Acceptor BuildAcceptor(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd, ConH con) {
     return Acceptor(new Acceptor_(ios, addr, port, cmd, con));
 }
+
+uint32_t cip2long(const char *ip) {
+    auto addr = boost::asio::ip::address::from_string(ip);
+    return addr.to_v4().to_ulong();
+}
 }
 }

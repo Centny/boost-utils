@@ -210,6 +210,32 @@ Data BuildData(const char *buf, size_t len, bool iss) { return Data(new Data_(bu
 
 Data BuildData(size_t len, bool iss) { return Data(new Data_(len, iss)); }
 
+Data JoinData(Data &a, Data &b) {
+    auto data = BuildData(a->len + b->len, a->iss);
+    memcpy(data->data, a->data, a->len);
+    memcpy(data->data + a->len, b->data, b->len);
+    return data;
+}
+
+Data FromHex(const char *hex) {
+    size_t len = strlen(hex);
+    if (len < 2 || len % 2) {
+        return Data();
+    }
+    auto bys = BuildData(len / 2);
+    for (unsigned int i = 0; i < len; i += 2) {
+        bys->data[i / 2] = strtol(hex + (i * 2), NULL, 16);
+    }
+    return bys;
+}
+
+int hex2int(char input) {
+    if (input >= '0' && input <= '9') return input - '0';
+    if (input >= 'A' && input <= 'F') return input - 'A' + 10;
+    if (input >= 'a' && input <= 'f') return input - 'a' + 10;
+    printf("%c\n", input);
+    throw std::invalid_argument("Invalid input string");
+}
 //
 }
 }
