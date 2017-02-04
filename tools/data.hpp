@@ -42,19 +42,7 @@ Data JoinData(Data &a, Data &b);
 Data FromHex(const char *hex);
 int hex2int(char input);
 struct DataComparer {
-    bool operator()(const Data &first, const Data &second) const {
-        if (first->len != second->len) {
-            return first->len < second->len;
-        }
-        for (size_t i = 0; i < first->len; i++) {
-            if (first->data[i] == second->data[i]) {
-                continue;
-            }
-            return first->data[i] < second->data[i];
-        }
-
-        return false;
-    }
+    bool operator()(const Data &first, const Data &second) const;
 };
 //
 }

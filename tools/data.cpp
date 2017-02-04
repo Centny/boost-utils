@@ -236,6 +236,19 @@ int hex2int(char input) {
     printf("%c\n", input);
     throw std::invalid_argument("Invalid input string");
 }
+bool DataComparer::operator()(const Data &first, const Data &second) const {
+    if (first->len != second->len) {
+        return first->len < second->len;
+    }
+    for (size_t i = 0; i < first->len; i++) {
+        if (first->data[i] == second->data[i]) {
+            continue;
+        }
+        return first->data[i] < second->data[i];
+    }
+
+    return false;
+}
 //
 }
 }
