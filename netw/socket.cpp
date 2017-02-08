@@ -150,7 +150,11 @@ void TCP_::start() { read(mod->header()); }
 
 TCP TCP_::share() { return boost::dynamic_pointer_cast<TCP_>(Writer_::share()); }
 
-UDP_::UDP_(asio::io_service &ios, Monitor m, basic_endpoint<nudp> &remote) : ios(ios), M(m), remote(remote) {}
+UDP_::UDP_(asio::io_service &ios, Monitor m, basic_endpoint<nudp> &remote) : ios(ios), M(m), remote(remote) {
+    sequence_lck.lock();
+    Id_ = sequence++;
+    sequence_lck.unlock();
+}
 
 UDP_::~UDP_() {}
 
@@ -165,6 +169,10 @@ size_t UDP_::write(const char *data, size_t len, boost::system::error_code &ec) 
 size_t UDP_::write(asio::streambuf &buf, boost::system::error_code &ec) { return M->write(remote, buf, ec); }
 
 UDP UDP_::share() { return boost::dynamic_pointer_cast<UDP_>(Writer_::share()); }
+    
+uint64_t UDP_::Id(){
+        return Id_;
+}
 
 void Monitor_::received(const boost::system::error_code &err, size_t transferred) {
     if (err) {
@@ -196,33 +204,48 @@ void Monitor_::receive() {
 
 void Monitor_::bind(basic_endpoint<nudp> ep, boost::system::error_code &ec) {
     sck.open(ep.protocol());
-    sck.set_option(asio::socket_base::reuse_address(true));
+    if (reused) {
+        sck.set_option(asio::socket_base::reuse_address(true));
+    }
     sck.bind(ep, ec);
 }
 
 Monitor_::Monitor_(asio::io_service &ios, CmdH cmd) : ios(ios), sck(ios), cmd(cmd) {
     endpoint = udp::endpoint(udp::v4(), 0);
     mod = ModH(new M1L2);
+    sequence_lck.lock();
+    Id_ = sequence++;
+    sequence_lck.unlock();
 }
 
 Monitor_::Monitor_(asio::io_service &ios, basic_endpoint<nudp> ep, CmdH cmd)
     : ios(ios), sck(ios), endpoint(ep), cmd(cmd) {
     mod = ModH(new M1L2);
+    sequence_lck.lock();
+    Id_ = sequence++;
+    sequence_lck.unlock();
 }
 
 Monitor_::Monitor_(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd)
     : ios(ios), sck(ios), endpoint(basic_endpoint<nudp>(address::from_string(addr), port)), cmd(cmd) {
     mod = ModH(new M1L2);
+    sequence_lck.lock();
+    Id_ = sequence++;
+    sequence_lck.unlock();
 }
 
 Monitor_::~Monitor_() {}
 
+uint64_t Monitor_::Id() { return Id_; }
+
 void Monitor_::close() { sck.close(); }
 
 void Monitor_::start(boost::system::error_code &ec) {
-    bind(endpoint, ec);
-    if (ec) {
-        return;
+    if(endpoint.port()){
+        bind(endpoint, ec);
+        if (ec) {
+            return;
+        }
     }
     receive();
 }
@@ -232,7 +255,13 @@ size_t Monitor_::write(basic_endpoint<nudp> remote, const char *data, size_t len
     char tbuf[hlen + len];
     mod->full(tbuf, len);
     memcpy(tbuf + hlen, data, len);
-    return sck.send_to(boost::asio::buffer(tbuf, len + hlen), remote, boost::asio::socket_base::message_peek, ec);
+    auto sended=sck.send_to(boost::asio::buffer(tbuf, len + hlen), remote, boost::asio::socket_base::message_peek, ec);
+    if(endpoint.port()==0){
+        endpoint=sck.local_endpoint();
+        con_=UDP(new UDP_(ios, share(), remote));
+        receive();
+    }
+    return sended;
 }
 
 size_t Monitor_::write(const char *addr, unsigned short port, const char *data, size_t len,
@@ -254,6 +283,10 @@ size_t Monitor_::write(const char *addr, unsigned short port, asio::streambuf &b
         return 0;
     }
     return write(basic_endpoint<nudp>(addr_, port), buf, ec);
+}
+    
+UDP Monitor_::con(){
+    return con_;
 }
 
 Monitor Monitor_::share() { return shared_from_this(); }
@@ -323,6 +356,9 @@ Acceptor_::Acceptor_(asio::io_service &ios, const basic_endpoint<asio::ip::tcp> 
     : ios(ios), cmd(cmd), con(con), act(ios) {
     this->endpoint = endpoint;
     mod = ModH(new M1L2());
+    sequence_lck.lock();
+    Id_ = sequence++;
+    sequence_lck.unlock();
 }
 
 Acceptor_::Acceptor_(asio::io_service &ios, const boost::asio::ip::address &addr, unsigned short port, CmdH cmd,
@@ -330,13 +366,21 @@ Acceptor_::Acceptor_(asio::io_service &ios, const boost::asio::ip::address &addr
     : ios(ios), cmd(cmd), con(con), act(ios) {
     this->endpoint = basic_endpoint<asio::ip::tcp>(addr, port);
     mod = ModH(new M1L2());
+    sequence_lck.lock();
+    Id_ = sequence++;
+    sequence_lck.unlock();
 }
 
 Acceptor_::Acceptor_(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd, ConH con)
     : ios(ios), cmd(cmd), con(con), act(ios) {
     this->endpoint = basic_endpoint<asio::ip::tcp>(asio::ip::address::from_string(addr), port);
     mod = ModH(new M1L2());
+    sequence_lck.lock();
+    Id_ = sequence++;
+    sequence_lck.unlock();
 }
+
+uint64_t Acceptor_::Id() { return Id_; }
 
 void Acceptor_::accepted(TCP s, const boost::system::error_code &err) {
     if (err) {
@@ -361,7 +405,9 @@ ModH Acceptor_::smod(TCP s) { return mod; }
 
 void Acceptor_::bind(basic_endpoint<ntcp> &ep, boost::system::error_code &ec) {
     act.open(ep.protocol());
-    act.set_option(asio::socket_base::reuse_address(true));
+    if (reused) {
+        act.set_option(asio::socket_base::reuse_address(true));
+    }
     act.bind(ep, ec);
 }
 

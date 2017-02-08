@@ -136,6 +136,8 @@ std::string ep_address(boost::asio::ip::basic_endpoint<T> &ep) {
 }
 
 class UDP_ : public Writer_ {
+protected:
+    uint64_t Id_;
    public:
     asio::io_service &ios;
     Monitor M;
@@ -149,15 +151,20 @@ class UDP_ : public Writer_ {
     virtual std::string address();
     virtual size_t write(const char *data, size_t len, boost::system::error_code &ec);
     virtual size_t write(asio::streambuf &buf, boost::system::error_code &ec);
+    virtual uint64_t Id();
     UDP share();
 };
 
 class Monitor_ : public boost::enable_shared_from_this<Monitor_> {
    protected:
+    uint64_t Id_;
     char cbuf[1024];
     basic_endpoint<nudp> remote;
+    UDP con_;
 
    public:
+    uint16_t tag = 0;
+    bool reused;
     CmdH cmd;
     ModH mod;
     asio::io_service &ios;
@@ -173,6 +180,7 @@ class Monitor_ : public boost::enable_shared_from_this<Monitor_> {
     Monitor_(asio::io_service &ios, CmdH cmd);
     Monitor_(asio::io_service &ios, basic_endpoint<nudp> ep, CmdH cmd);
     Monitor_(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd);
+    virtual uint64_t Id();
     virtual ~Monitor_();
     virtual void close();
     virtual void start(boost::system::error_code &ec);
@@ -181,6 +189,7 @@ class Monitor_ : public boost::enable_shared_from_this<Monitor_> {
                          boost::system::error_code &ec);
     virtual size_t write(basic_endpoint<nudp> remote, asio::streambuf &buf, boost::system::error_code &ec);
     virtual size_t write(const char *addr, unsigned short port, asio::streambuf &buf, boost::system::error_code &ec);
+    virtual UDP con();
     Monitor share();
 };
 Monitor BuildMonitor(asio::io_service &ios, CmdH cmd);
@@ -244,7 +253,11 @@ Connector BuildConnector(asio::io_service &ios, CmdH cmd, ConH con);
 // the template acceptor for tcp/udp
 // template <typename T>
 class Acceptor_ : public boost::enable_shared_from_this<Acceptor_> {
+   protected:
+    uint64_t Id_;
+
    public:
+    uint16_t tag = 0;
     bool reused;
     CmdH cmd;
     ConH con;
@@ -264,6 +277,7 @@ class Acceptor_ : public boost::enable_shared_from_this<Acceptor_> {
     Acceptor_(asio::io_service &ios, const boost::asio::ip::address &addr, unsigned short port, CmdH cmd, ConH con);
     Acceptor_(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd, ConH con);
     Acceptor share();
+    virtual uint64_t Id();
     virtual void start(boost::system::error_code &ec);
     virtual void close();
 };
