@@ -82,6 +82,8 @@ class Writer_ : public boost::enable_shared_from_this<Writer_> {
    protected:
     uint64_t Id_;
 
+    public:
+    uint16_t tag = 0;
    public:
     Writer_();
     virtual uint64_t Id();
@@ -136,16 +138,16 @@ std::string ep_address(boost::asio::ip::basic_endpoint<T> &ep) {
 }
 
 class UDP_ : public Writer_ {
-protected:
+   protected:
     uint64_t Id_;
+
    public:
     asio::io_service &ios;
     Monitor M;
-    uint16_t tag = 0;
     basic_endpoint<nudp> remote;
 
    public:
-    UDP_(asio::io_service &ios, Monitor m, basic_endpoint<nudp> &remote);
+    UDP_(asio::io_service &ios, Monitor m, basic_endpoint<nudp> remote);
     virtual ~UDP_();
     virtual void close();
     virtual std::string address();
@@ -155,15 +157,14 @@ protected:
     UDP share();
 };
 
-class Monitor_ : public boost::enable_shared_from_this<Monitor_> {
+class Monitor_ : public UDP_ {
    protected:
-    uint64_t Id_;
+    //    uint64_t Id_;
     char cbuf[1024];
-    basic_endpoint<nudp> remote;
-    UDP con_;
+    basic_endpoint<nudp> tremote;
+    //    UDP con_;
 
    public:
-    uint16_t tag = 0;
     bool reused;
     CmdH cmd;
     ModH mod;
@@ -180,7 +181,7 @@ class Monitor_ : public boost::enable_shared_from_this<Monitor_> {
     Monitor_(asio::io_service &ios, CmdH cmd);
     Monitor_(asio::io_service &ios, basic_endpoint<nudp> ep, CmdH cmd);
     Monitor_(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd);
-    virtual uint64_t Id();
+    //    virtual uint64_t Id();
     virtual ~Monitor_();
     virtual void close();
     virtual void start(boost::system::error_code &ec);
@@ -189,7 +190,6 @@ class Monitor_ : public boost::enable_shared_from_this<Monitor_> {
                          boost::system::error_code &ec);
     virtual size_t write(basic_endpoint<nudp> remote, asio::streambuf &buf, boost::system::error_code &ec);
     virtual size_t write(const char *addr, unsigned short port, asio::streambuf &buf, boost::system::error_code &ec);
-    virtual UDP con();
     Monitor share();
 };
 Monitor BuildMonitor(asio::io_service &ios, CmdH cmd);
@@ -206,7 +206,6 @@ class TCP_ : public Writer_ {
     CmdH cmd;
     ConH con;
     ModH mod;
-    uint16_t tag = 0;
     char cbuf[102400];
     asio::io_service &ios;
     asio::basic_stream_socket<ntcp> sck;

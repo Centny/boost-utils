@@ -150,7 +150,7 @@ void TCP_::start() { read(mod->header()); }
 
 TCP TCP_::share() { return boost::dynamic_pointer_cast<TCP_>(Writer_::share()); }
 
-UDP_::UDP_(asio::io_service &ios, Monitor m, basic_endpoint<nudp> &remote) : ios(ios), M(m), remote(remote) {
+UDP_::UDP_(asio::io_service &ios, Monitor m, basic_endpoint<nudp> remote) : ios(ios), M(m), remote(remote) {
     sequence_lck.lock();
     Id_ = sequence++;
     sequence_lck.unlock();
@@ -169,10 +169,8 @@ size_t UDP_::write(const char *data, size_t len, boost::system::error_code &ec) 
 size_t UDP_::write(asio::streambuf &buf, boost::system::error_code &ec) { return M->write(remote, buf, ec); }
 
 UDP UDP_::share() { return boost::dynamic_pointer_cast<UDP_>(Writer_::share()); }
-    
-uint64_t UDP_::Id(){
-        return Id_;
-}
+
+uint64_t UDP_::Id() { return Id_; }
 
 void Monitor_::received(const boost::system::error_code &err, size_t transferred) {
     if (err) {
@@ -198,7 +196,7 @@ void Monitor_::received(const boost::system::error_code &err, size_t transferred
 void Monitor_::receive() {
     auto cback = boost::bind(&Monitor_::received, this, boost::asio::placeholders::error,
                              boost::asio::placeholders::bytes_transferred);
-    remote = basic_endpoint<nudp>(udp::v4(), 0);
+    tremote = basic_endpoint<nudp>(udp::v4(), 0);
     sck.async_receive_from(boost::asio::buffer(cbuf, 1024), remote, cback);
 }
 
@@ -210,38 +208,32 @@ void Monitor_::bind(basic_endpoint<nudp> ep, boost::system::error_code &ec) {
     sck.bind(ep, ec);
 }
 
-Monitor_::Monitor_(asio::io_service &ios, CmdH cmd) : ios(ios), sck(ios), cmd(cmd) {
+Monitor_::Monitor_(asio::io_service &ios, CmdH cmd)
+    : ios(ios), sck(ios), cmd(cmd), UDP_(ios, Monitor(), basic_endpoint<nudp>(udp::v4(), 0)) {
     endpoint = udp::endpoint(udp::v4(), 0);
     mod = ModH(new M1L2);
-    sequence_lck.lock();
-    Id_ = sequence++;
-    sequence_lck.unlock();
 }
 
 Monitor_::Monitor_(asio::io_service &ios, basic_endpoint<nudp> ep, CmdH cmd)
-    : ios(ios), sck(ios), endpoint(ep), cmd(cmd) {
+    : ios(ios), sck(ios), endpoint(ep), cmd(cmd), UDP_(ios, Monitor(), basic_endpoint<nudp>(udp::v4(), 0)) {
     mod = ModH(new M1L2);
-    sequence_lck.lock();
-    Id_ = sequence++;
-    sequence_lck.unlock();
 }
 
 Monitor_::Monitor_(asio::io_service &ios, const char *addr, unsigned short port, CmdH cmd)
-    : ios(ios), sck(ios), endpoint(basic_endpoint<nudp>(address::from_string(addr), port)), cmd(cmd) {
+    : ios(ios),
+      sck(ios),
+      endpoint(basic_endpoint<nudp>(address::from_string(addr), port)),
+      cmd(cmd),
+      UDP_(ios, Monitor(), basic_endpoint<nudp>(udp::v4(), 0)) {
     mod = ModH(new M1L2);
-    sequence_lck.lock();
-    Id_ = sequence++;
-    sequence_lck.unlock();
 }
 
 Monitor_::~Monitor_() {}
 
-uint64_t Monitor_::Id() { return Id_; }
-
 void Monitor_::close() { sck.close(); }
 
 void Monitor_::start(boost::system::error_code &ec) {
-    if(endpoint.port()){
+    if (endpoint.port()) {
         bind(endpoint, ec);
         if (ec) {
             return;
@@ -255,10 +247,12 @@ size_t Monitor_::write(basic_endpoint<nudp> remote, const char *data, size_t len
     char tbuf[hlen + len];
     mod->full(tbuf, len);
     memcpy(tbuf + hlen, data, len);
-    auto sended=sck.send_to(boost::asio::buffer(tbuf, len + hlen), remote, boost::asio::socket_base::message_peek, ec);
-    if(endpoint.port()==0){
-        endpoint=sck.local_endpoint();
-        con_=UDP(new UDP_(ios, share(), remote));
+    auto sended =
+        sck.send_to(boost::asio::buffer(tbuf, len + hlen), remote, boost::asio::socket_base::message_peek, ec);
+    if (endpoint.port() == 0) {
+        endpoint = sck.local_endpoint();
+        UDP_::M = share();
+        UDP_::remote = tremote;
         receive();
     }
     return sended;
@@ -284,12 +278,8 @@ size_t Monitor_::write(const char *addr, unsigned short port, asio::streambuf &b
     }
     return write(basic_endpoint<nudp>(addr_, port), buf, ec);
 }
-    
-UDP Monitor_::con(){
-    return con_;
-}
 
-Monitor Monitor_::share() { return shared_from_this(); }
+Monitor Monitor_::share() { return boost::dynamic_pointer_cast<Monitor_>(Writer_::share()); }
 
 Monitor BuildMonitor(asio::io_service &ios, CmdH cmd) { return Monitor(new Monitor_(ios, cmd)); }
 
